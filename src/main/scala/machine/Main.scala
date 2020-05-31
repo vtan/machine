@@ -11,7 +11,8 @@ import org.scalajs.dom.html.TextArea
 object Main {
 
   def main(args: Array[String]): Unit = {
-    val codeInput: Var[String] = Var("")
+    val savedCode = Option(dom.window.localStorage.getItem("code"))
+    val codeInput: Var[String] = Var(savedCode.getOrElse(""))
     val codeError: Var[Option[String]] = Var(None)
     val machine: Var[Machine] = Var(Machine(Vector.fill(0x10000)(0)))
     html.render(dom.document.body, mainContainer(codeInput, codeError, machine))
@@ -34,6 +35,7 @@ object Main {
         case Right(parsed) =>
           codeError.value = None
           machine.value = parsed
+          dom.window.localStorage.setItem("code", code.value)
       }
 
     <div class="codePanel">
