@@ -1,0 +1,39 @@
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+body, button, pre, textarea {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 14px;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+}
+
+.mainContainer {
+  display: flex;
+  height: 100vh;
+}
+
+.codePanel {
+  display: flex;
+  flex-direction: column;
+
+  flex: 1 1 0;
+  padding: 1em;
+}
+
+.codePanel textarea {
+  flex-grow: 1;
+  width: 100%;
+}
+
+.codePanel button {
+  margin: 0 auto;
+  width: 10em;
+}
+
+.machinePanel {
+  flex: 1 1 0;
+  padding: 1em;
+}
