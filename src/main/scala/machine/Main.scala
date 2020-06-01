@@ -1,5 +1,7 @@
 package machine
 
+import machine.assembler.Assembler
+
 import com.thoughtworks.binding.Binding
 import com.thoughtworks.binding.Binding.Var
 import org.lrng.binding.html
@@ -29,7 +31,7 @@ object Main {
   @html
   def codePanel(code: Var[String], codeError: Var[Option[String]], machine: Var[Machine]): Binding[Node] = {
     def onLoad(e: Event): Unit =
-      ProgramParser.parse(code.value) match {
+      Assembler.assemble(code.value) match {
         case Left(error) =>
           codeError.value = Some(error)
         case Right(parsed) =>

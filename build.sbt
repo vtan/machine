@@ -5,6 +5,7 @@ version := "0.1"
 scalaVersion := "2.13.2"
 
 libraryDependencies ++= Vector(
+  "com.lihaoyi" %%% "fastparse" % "2.3.0",
   "com.thoughtworks.binding" %%% "binding" % "12.0.0",
   "org.lrng.binding" %%% "html" % "1.0.3",
   "org.scala-js" %%% "scalajs-dom" % "1.0.0"
