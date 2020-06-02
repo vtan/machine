@@ -1,62 +1,37 @@
 package machine
 
-final case class Machine(
-  memory: Vector[Int],
-  registers: Vector[Int],
-  error: Option[String]
-) {
-  val ax: Int = registers(Machine.axAddr)
-  val bx: Int = registers(Machine.bxAddr)
-  val ip: Int = registers(Machine.ipAddr)
+import scala.scalajs.js.typedarray.Uint8Array
 
-  def step: Option[Machine] =
-    error match {
-      case Some(_) => None
-      case None =>
-        Some {
-          val opcodeHead = memory(ip)
-          val instruction = Instruction.allByOpcodeHead.get(opcodeHead)
-          instruction match {
-            case Some(TwoOperandInstruction(operation)) =>
-              val discriminator = memory(ip + 1)
-              val (operands, opcodeSize) = discriminator & 3 match {
-                case 0 =>
-                  val dest = discriminator >> 2 & 3
-                  val src = memory(ip + 2) | memory(ip + 3) << 8
-                  TwoOperandInstruction.RegMem(dest, src) -> 4
-                case 1 =>
-                  val dest = memory(ip + 2) | memory(ip + 3) << 8
-                  val src = discriminator >> 2 & 3
-                  TwoOperandInstruction.MemReg(dest, src) -> 4
-                case 2 =>
-                  val dest = discriminator >> 2 & 3
-                  val src = discriminator >> 4 & 3
-                  TwoOperandInstruction.RegReg(dest, src) -> 2
-                case 3 =>
-                  val dest = discriminator >> 2 & 3
-                  val src = memory(ip + 2) | memory(ip + 3) << 8
-                  TwoOperandInstruction.RegImm(dest, src) -> 4
-              }
-              operation(
-                operands,
-                copy(registers = registers.updated(Machine.ipAddr, ip + opcodeSize))
-              )
-            case None =>
-              copy(error = Some(s"Unknown opcode: $opcodeHead"))
-          }
-        }
+class Machine(
+  val memory: Uint8Array,
+  val registers: Uint8Array,
+  var error: Option[String]
+) {
+  def ax: Short = registers(Machine.axAddr)
+  def bx: Short = registers(Machine.bxAddr)
+  def ip: Short = registers(Machine.ipAddr)
+
+  def step(): Unit =
+    if (error.isEmpty) {
+      val opcodeHead = memory(ip)
+      if (opcodeHead == 0x01) {
+        registers(Machine.axAddr) = (registers(Machine.axAddr) + 1).toShort
+        registers(Machine.ipAddr) = (registers(Machine.ipAddr) + 1).toShort
+      } else {
+        error = Some(s"Invalid opcode: $opcodeHead")
+      }
     }
 }
 
 object Machine {
 
-  def apply(memory: Vector[Int]): Machine = Machine(
-    memory = memory,
-    registers = Vector.fill(3)(0),
+  def apply(memory: Seq[Int]): Machine = new Machine(
+    memory = Uint8Array.of(memory.map(_.toShort): _*),
+    registers = new Uint8Array(length = 3),
     error = None
   )
 
-  val axAddr: Int = 0
-  val bxAddr: Int = 1
+  private val axAddr: Int = 0
+  private val bxAddr: Int = 1
   private val ipAddr: Int = 2
 }
