@@ -9,6 +9,10 @@ class Machine(val memory: Uint8Array) {
   private var x: Int = 0
   private var y: Int = 0
   private var ip: Int = 0
+  private var flags: Int = 0
+
+  private val flagZero: Int = 1 << 0
+  private val flagCarry: Int = 1 << 1
 
   private var fetched: Int = 0
 
@@ -16,7 +20,8 @@ class Machine(val memory: Uint8Array) {
     "a" -> a,
     "x" -> x,
     "y" -> y,
-    "ip" -> ip
+    "ip" -> ip,
+    "flags" -> flags
   )
 
   def step(): Unit =
@@ -32,8 +37,8 @@ class Machine(val memory: Uint8Array) {
     }
 
   private val opcodes: Map[Int, Operation] = Map(
-    0x01 -> Operation(fetchImmediate, add),
-    0x02 -> Operation(fetchAddress, add),
+    0x01 -> Operation(fetchImmediate, adc),
+    0x02 -> Operation(fetchAddress, adc),
 
     0x11 -> Operation(fetchImmediate, movToA),
     0x12 -> Operation(fetchAddress, movToA),
@@ -73,8 +78,17 @@ class Machine(val memory: Uint8Array) {
   private def fetchX(): Unit = fetched = x
   private def fetchY(): Unit = fetched = y
 
-  private def add(): Unit = {
-    a = (a + fetched) & 0xFF
+  private def adc(): Unit = {
+    val sum = a + fetched + (if ((flags & flagCarry) == 0) 0 else 1)
+    val result = sum & 0xFF
+    flags = 0
+    if (result == 0) {
+      flags |= flagZero
+    }
+    if ((sum & 0x100) != 0) {
+      flags |= flagCarry
+    }
+    a = result
   }
 
   private def movToA(): Unit = a = fetched

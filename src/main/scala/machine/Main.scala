@@ -100,6 +100,7 @@ object Main {
         <p><strong>A</strong> { String.format("%02X", registers("a")) }</p>
         <p><strong>X</strong> { String.format("%02X", registers("x")) }</p>
         <p><strong>Y</strong> { String.format("%02X", registers("y")) }</p>
+        <p><strong>FLAGS</strong> { String.format("%02X", registers("flags")) }</p>
         <button onclick={ (_: Event) => state.stepMachine() }>Step</button>
       }
     </div>

@@ -20,7 +20,7 @@ private[assembler] object BytecodeBuilder {
   private val instructions: Map[String, PartialFunction[Seq[Operand], Seq[Int]]] = {
     import Operand._
     Map(
-      "add" -> {
+      "adc" -> {
         case Seq(Immediate(imm)) => Seq(0x01, imm)
         case Seq(Address(addr)) => 0x02 +: wordToBytes(addr)
       },
