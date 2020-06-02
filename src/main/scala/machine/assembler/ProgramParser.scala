@@ -4,7 +4,7 @@ import fastparse._
 
 private[assembler] object ProgramParser {
 
-  def parse(input: String): Either[String, Seq[Instruction]] =
+  def parse(input: String): Either[String, Seq[Command]] =
     fastparse.parse(input, program(_), verboseFailures = true) match {
       case Parsed.Success(result, _) => Right(result)
       case failure: Parsed.Failure => Left(failure.msg)
@@ -16,8 +16,14 @@ private[assembler] object ProgramParser {
 
   private def newlines[_: P]: P[Unit] = CharsWhileIn("\n\r")
 
-  private def program[_: P] : P[Seq[Instruction]] =
-    P(newlines.? ~ instruction.?.rep(sep = newlines).map(_.flatten) ~ newlines.? ~ End)
+  private def program[_: P] : P[Seq[Command]] =
+    P(line.rep(sep = newlines./).map(_.flatten) ~ End)
+
+  private def line[_: P]: P[Seq[Command]] =
+    P(label.? ~ instruction.?).map { case (l, i) => l.toSeq ++ i.toSeq }
+
+  private def label[_: P]: P[Label] =
+    P(identifier ~~ ":" ~ Index).map((Label.apply _).tupled)
 
   private def instruction[_: P]: P[Instruction] =
     P(identifier ~ operand.rep(sep = ","./) ~ Index).map((Instruction.apply _).tupled)
@@ -31,7 +37,9 @@ private[assembler] object ProgramParser {
   private def register[_: P]: P[Operand] =
     P("a".!.map(_ => Operand.A) | "x".!.map(_ => Operand.X) | "y".!.map(_ => Operand.Y))
 
-  private def identifier[_: P]: P[String] = P(CharsWhileIn("a-z").!)
+  private def identifier[_: P]: P[String] =
+    P((CharIn("a-zA-Z_") ~ CharsWhileIn("a-zA-Z_0-9")).!)
+
   private def number[_: P]: P[Int] = P(binaryNumber | hexNumber | decimalNumber)
 
   private def decimalNumber[_: P]: P[Int] =

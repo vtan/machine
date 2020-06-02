@@ -4,16 +4,28 @@ import machine.wordToBytes
 
 private[assembler] object BytecodeBuilder {
 
-  def build(instructions: Seq[Instruction]): Either[String, Seq[Int]] = {
-    val (errors, bytes) = instructions.partitionMap { instruction =>
-      buildInstruction(instruction).fold(
-        err => Left(s"Error at ${instruction.position}: " ++ err),
-        Right(_)
-      )
-    }
-    errors match {
-      case Seq() => Right(bytes.flatten.toVector)
-      case firstError +: _ => Left(firstError)
+  private final case class State(
+    currentOffset: Int,
+    labelOffsets: Map[String, Int],
+    bytecode: Vector[Int]
+  )
+
+  def build(commands: Seq[Command]): Either[String, Seq[Int]] = {
+    val initialState: Either[String, State] = Right(State(
+      currentOffset = 0,
+      labelOffsets = Map.empty,
+      bytecode = Vector.empty
+    ))
+    for {
+      result <- commands.foldLeft(initialState) { (errorOrState, command) =>
+          errorOrState match {
+            case Right(state) => processCommand(command, state)
+            case Left(error) => Left(s"Error at ${command.position}: " ++ error)
+          }
+        }
+    } yield {
+      println(result.labelOffsets)
+      result.bytecode
     }
   }
 
@@ -47,13 +59,30 @@ private[assembler] object BytecodeBuilder {
     )
   }
 
-  private def buildInstruction(instruction: Instruction): Either[String, Seq[Int]] =
-    instructions.get(instruction.operation) match {
-      case None => Left(s"Invalid instruction: ${instruction.operation}")
-      case Some(validOperands) =>
-        instruction.operands match {
-          case validOperands(bytes) => Right(bytes)
-          case _ => Left("Invalid operands for instruction")
+  private def processCommand(command: Command, state: State): Either[String, State] =
+    command match {
+      case Label(label, _) =>
+        if (state.labelOffsets.contains(label)) {
+          Left("Duplicate label")
+        } else {
+          Right(state.copy(labelOffsets = state.labelOffsets + (label -> state.currentOffset)))
+        }
+
+      case Instruction(operation, operands, _) =>
+        instructions.get(operation) match {
+          case None => Left(s"Invalid instruction: $operation")
+          case Some(validOperands) =>
+            operands match {
+              case validOperands(bytes) =>
+                // TODO check if it fits in memory
+                val offset = state.currentOffset + bytes.length
+                Right(state.copy(
+                  currentOffset = offset,
+                  bytecode = state.bytecode ++ bytes
+                ))
+              case _ =>
+                Left("Invalid operands for instruction")
+            }
         }
     }
 }

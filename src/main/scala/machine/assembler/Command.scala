@@ -1,14 +1,28 @@
 package machine.assembler
 
-private[assembler] final case class Instruction(
+private[assembler]
+sealed trait Command {
+  val position: Int
+}
+
+private[assembler]
+final case class Instruction(
   operation: String,
   operands: Seq[Operand],
   position: Int
-)
+) extends Command
 
-private[assembler] sealed trait Operand
+private[assembler]
+final case class Label(
+  symbol: String,
+  position: Int
+) extends Command
 
-private[assembler] object Operand {
+private[assembler]
+sealed trait Operand
+
+private[assembler]
+object Operand {
   final case class Address(address: Int) extends Operand
   final case class Immediate(value: Int) extends Operand
 
