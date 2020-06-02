@@ -1,14 +1,13 @@
 package machine
 
 import machine.assembler.Assembler
-
 import com.thoughtworks.binding.Binding
 import com.thoughtworks.binding.Binding.Var
 import org.lrng.binding.html
 import org.scalajs.dom
-import org.scalajs.dom.raw.Event
 import org.scalajs.dom.Node
 import org.scalajs.dom.html.TextArea
+import org.scalajs.dom.raw.{Event, HTMLCanvasElement}
 
 class State(
   private var machine: Machine,
@@ -16,9 +15,11 @@ class State(
   val codeError: Var[Option[String]],
 ) {
 
-  val machineError: Var[Option[String]] = Var(machine.error)
-  val memory: Var[String] = Var(MemoryPrinter.print(machine.memory))
-  val registers: Var[Map[String, Int]] = Var(machine.registers)
+  val machineError: Var[Option[String]] = Var(machine.cpu.error)
+  val memory: Var[String] = Var(MemoryPrinter.print(machine.bus.memory))
+  val registers: Var[Map[String, Int]] = Var(machine.cpu.registers)
+
+  private var canvas: Option[HTMLCanvasElement] = None
 
   def setCode(input: String): Unit =
     code.value = input.toLowerCase
@@ -27,24 +28,30 @@ class State(
     Assembler.assemble(code.value) match {
       case Left(error) =>
         codeError.value = Some(error)
-        machine = Machine(Nil)
+        machine = Machine(memory = Nil)
         machineUpdated()
       case Right(parsed) =>
         codeError.value = None
         machine = parsed
+        machine.bus.display = canvas.map(Display(_))
         machineUpdated()
         dom.window.localStorage.setItem("code", code.value)
     }
 
   def stepMachine(): Unit = {
-    machine.step()
+    machine.cpu.step()
     machineUpdated()
   }
 
+  def canvasChanged(canvas: HTMLCanvasElement): Unit = {
+    this.canvas = Some(canvas)
+    machine.bus.display = Some(Display(canvas))
+  }
+
   private def machineUpdated(): Unit = {
-    machineError.value = machine.error
-    memory.value = MemoryPrinter.print(machine.memory)
-    registers.value = machine.registers
+    machineError.value = machine.cpu.error
+    memory.value = MemoryPrinter.print(machine.bus.memory)
+    registers.value = machine.cpu.registers
   }
 }
 
@@ -85,6 +92,11 @@ object Main {
   @html
   def machinePanel(state: State): Binding[Node] = {
     <div class="machinePanel">
+      {
+        val canvas = <canvas id="displayCanvas" />
+        state.canvasChanged(canvas.bind)
+        canvas
+      }
       {
         val machineError = state.machineError.bind
         val memory = state.memory.bind
