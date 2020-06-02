@@ -23,13 +23,10 @@ private[assembler] object ProgramParser {
     P(identifier ~ operand.rep(sep = ","./) ~ Index).map((Instruction.apply _).tupled)
 
   private def operand[_: P]: P[Operand] =
-    P(register | addressReference | immediate)
+    P(addressReference | immediate)
 
   private def immediate[_: P]: P[Operand] = P(number.map(Operand.Immediate))
   private def addressReference[_: P]: P[Operand] = P("[" ~ number ~ "]").map(Operand.Address)
-
-  private def register[_: P]: P[Operand] =
-    P("ax".!.map(_ => Operand.AX) | "bx".!.map(_ => Operand.BX))
 
   private def identifier[_: P]: P[String] = P(CharsWhileIn("a-z").!)
   private def number[_: P]: P[Int] = P(binaryNumber | hexNumber | decimalNumber)

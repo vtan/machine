@@ -4,7 +4,7 @@ import machine.wordToBytes
 
 private[assembler] object BytecodeBuilder {
 
-  def build(instructions: Seq[Instruction]): Either[String, Vector[Int]] = {
+  def build(instructions: Seq[Instruction]): Either[String, Seq[Int]] = {
     val (errors, bytes) = instructions.partitionMap { instruction =>
       buildInstruction(instruction).fold(
         err => Left(s"Error at ${instruction.position}: " ++ err),
@@ -17,42 +17,23 @@ private[assembler] object BytecodeBuilder {
     }
   }
 
-  private def buildInstruction(instruction: Instruction): Either[String, Vector[Int]] = {
+  private val instructions: Map[String, PartialFunction[Seq[Operand], Seq[Int]]] = {
     import Operand._
-    instruction.operation match {
-      case "add" =>
-        val opcode = 0x01
-        instruction.operands match {
-          case Seq(RegisterAsBits(reg), Address(addr)) =>
-            val discriminator = reg << 2
-            Right(opcode +: discriminator +: wordToBytes(addr))
-
-          case Seq(Address(addr), RegisterAsBits(reg)) =>
-            val discriminator = reg << 2 | 1
-            Right(opcode +: discriminator +: wordToBytes(addr))
-
-          case Seq(RegisterAsBits(reg1), RegisterAsBits(reg2)) =>
-            val discriminator = reg2 << 4 | reg1 << 2 | 2
-            Right(Vector(opcode, discriminator))
-
-          case Seq(RegisterAsBits(reg), Immediate(imm)) =>
-            val discriminator = reg << 2 | 3
-            Right(opcode +: discriminator +: wordToBytes(imm))
-
-          case Seq(_, _) => Left("Invalid operands for instruction")
-          case _ => Left("Invalid number of operands, expected 2")
-        }
-
-      case unknown =>
-        Left(s"Unknown operation: $unknown")
-    }
-  }
-
-  private object RegisterAsBits {
-    def unapply(register: Operand.Register): Option[Int] =
-      register match {
-        case Operand.AX => Some(0)
-        case Operand.BX => Some(1)
+    Map(
+      "add" -> {
+        case Seq(Immediate(imm)) => Seq(0x01, imm)
+        case Seq(Address(addr)) => 0x02 +: wordToBytes(addr)
       }
+    )
   }
+
+  private def buildInstruction(instruction: Instruction): Either[String, Seq[Int]] =
+    instructions.get(instruction.operation) match {
+      case None => Left(s"Invalid instruction: ${instruction.operation}")
+      case Some(validOperands) =>
+        instruction.operands match {
+          case validOperands(bytes) => Right(bytes)
+          case _ => Left("Invalid operands for instruction")
+        }
+    }
 }

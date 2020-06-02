@@ -2,36 +2,62 @@ package machine
 
 import scala.scalajs.js.typedarray.Uint8Array
 
-class Machine(
-  val memory: Uint8Array,
-  val registers: Uint8Array,
-  var error: Option[String]
-) {
-  def ax: Short = registers(Machine.axAddr)
-  def bx: Short = registers(Machine.bxAddr)
-  def ip: Short = registers(Machine.ipAddr)
+class Machine(val memory: Uint8Array) {
+  var error: Option[String] = None
+
+  private var a: Int = 0
+  private var ip: Int = 0
+
+  private var fetched: Short = 0
+
+  def registers: Map[String, Int] = Map(
+    "a" -> a,
+    "ip" -> ip
+  )
 
   def step(): Unit =
     if (error.isEmpty) {
-      val opcodeHead = memory(ip)
-      if (opcodeHead == 0x01) {
-        registers(Machine.axAddr) = (registers(Machine.axAddr) + 1).toShort
-        registers(Machine.ipAddr) = (registers(Machine.ipAddr) + 1).toShort
-      } else {
-        error = Some(s"Invalid opcode: $opcodeHead")
+      val opcodeHead = nextInstructionByte()
+      opcodes.get(opcodeHead.toInt) match {
+        case Some(Operation(fetch, execute)) =>
+          fetch()
+          execute()
+        case None =>
+          error = Some(s"Invalid opcode: $opcodeHead")
       }
     }
+
+  private val opcodes: Map[Int, Operation] = Map(
+    0x01 -> Operation(fetchImmediate, add),
+    0x02 -> Operation(fetchAddress, add)
+  )
+
+  private def fetchImmediate(): Unit =
+    fetched = nextInstructionByte()
+
+  private def fetchAddress(): Unit = {
+    val lo = nextInstructionByte()
+    val hi = nextInstructionByte()
+    fetched = memory(lo | hi << 8)
+  }
+
+  private def add(): Unit = {
+    a = (a + fetched) & 0xFF
+  }
+
+  private def nextInstructionByte(): Short = {
+    val result = memory(ip)
+    ip = (ip + 1) & 0xFFFF
+    result
+  }
 }
 
 object Machine {
-
-  def apply(memory: Seq[Int]): Machine = new Machine(
-    memory = Uint8Array.of(memory.map(_.toShort): _*),
-    registers = new Uint8Array(length = 3),
-    error = None
-  )
-
-  private val axAddr: Int = 0
-  private val bxAddr: Int = 1
-  private val ipAddr: Int = 2
+  def apply(memory: Seq[Int]): Machine =
+    new Machine(Uint8Array.of(memory.map(_.toShort): _*))
 }
+
+private final case class Operation(
+  fetch: () => Unit,
+  execute: () => Unit
+)

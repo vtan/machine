@@ -18,7 +18,7 @@ class State(
 
   val machineError: Var[Option[String]] = Var(machine.error)
   val memory: Var[String] = Var(MemoryPrinter.print(machine.memory))
-  val registers: Var[Map[String, Int]] = Var(Map("ax" -> machine.ax, "bx" -> machine.bx, "ip" -> machine.ip))
+  val registers: Var[Map[String, Int]] = Var(machine.registers)
 
   def setCode(input: String): Unit =
     code.value = input.toLowerCase
@@ -44,7 +44,7 @@ class State(
   private def machineUpdated(): Unit = {
     machineError.value = machine.error
     memory.value = MemoryPrinter.print(machine.memory)
-    registers.value = Map("ax" -> machine.ax, "bx" -> machine.bx, "ip" -> machine.ip)
+    registers.value = machine.registers
   }
 }
 
@@ -97,8 +97,7 @@ object Main {
           } }
         </p>
         <p><strong>IP</strong> { String.format("%04X", registers("ip")) }</p>
-        <p><strong>AX</strong> { String.format("%04X", registers("ax")) }</p>
-        <p><strong>BX</strong> { String.format("%04X", registers("bx")) }</p>
+        <p><strong>A</strong> { String.format("%02X", registers("a")) }</p>
         <button onclick={ (_: Event) => state.stepMachine() }>Step</button>
       }
     </div>
