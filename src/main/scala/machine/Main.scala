@@ -12,65 +12,106 @@ import org.scalajs.dom.html.TextArea
 
 object Main {
 
-  def main(args: Array[String]): Unit = {
-    val savedCode = Option(dom.window.localStorage.getItem("code"))
-    val codeInput: Var[String] = Var(savedCode.getOrElse(""))
-    val codeError: Var[Option[String]] = Var(None)
-    val machine: Var[Machine] = Var(Machine(Vector.fill(0x10000)(0)))
-    html.render(dom.document.body, mainContainer(codeInput, codeError, machine))
+  trait Dispatch {
+    def setCode(input: String): Unit
+    def loadCode(): Unit
+    def stepMachine(): Unit
   }
 
-  @html
-  def mainContainer(code: Var[String], codeError: Var[Option[String]], machine: Var[Machine]): Binding[Node] = {
-    <div class="mainContainer">
-      { codePanel(code, codeError, machine).bind }
-      { machinePanel(machine).bind }
-    </div>
-  }
+  class State(
+    private var machine: Machine,
+    val code: Var[String],
+    val codeError: Var[Option[String]],
+  ) extends Dispatch {
 
-  @html
-  def codePanel(code: Var[String], codeError: Var[Option[String]], machine: Var[Machine]): Binding[Node] = {
-    def onLoad(e: Event): Unit =
+    val machineError: Var[Option[String]] = Var(machine.error)
+    val memory: Var[String] = Var(MemoryPrinter.print(machine.memory))
+    val registers: Var[Map[String, Int]] = Var(Map("ax" -> machine.ax, "bx" -> machine.bx, "ip" -> machine.ip))
+
+    def setCode(input: String): Unit =
+      code.value = input
+
+    def loadCode(): Unit =
       Assembler.assemble(code.value) match {
         case Left(error) =>
           codeError.value = Some(error)
         case Right(parsed) =>
           codeError.value = None
-          machine.value = parsed
+          machine = parsed
+          machineUpdated()
           dom.window.localStorage.setItem("code", code.value)
       }
 
-    <div class="codePanel">
-      <textarea onchange={ (e: Event) => code.value = e.target.asInstanceOf[TextArea].value }>{ code.bind }</textarea>
-      <div>
-        { codeError.bind match {
-            case Some(error) => <strong>{ error }</strong>
-            case None => <span/>
-        } }
-      </div>
-      <button onclick={ onLoad _ }>Load</button>
+    def stepMachine(): Unit =
+      machine.step.foreach { newMachine =>
+        machine = newMachine
+        machineUpdated()
+      }
+
+    private def machineUpdated(): Unit = {
+      machineError.value = machine.error
+      memory.value = MemoryPrinter.print(machine.memory)
+      registers.value = Map("ax" -> machine.ax, "bx" -> machine.bx, "ip" -> machine.ip)
+    }
+  }
+
+  def main(args: Array[String]): Unit = {
+    val savedCode = Option(dom.window.localStorage.getItem("code"))
+    val state = new State(
+      machine = Machine(Vector.fill(0x10000)(0)),
+      code = Var(savedCode.getOrElse("")),
+      codeError = Var(None)
+    )
+    html.render(dom.document.body, mainContainer(state))
+  }
+
+  @html
+  def mainContainer(state: State): Binding[Node] = {
+    <div class="mainContainer">
+      { codePanel(state.code.bind, state.codeError.bind, state) }
+      { machinePanel(state.machineError.bind, state.memory.bind, state.registers.bind, state) }
     </div>
   }
 
   @html
-  def machinePanel(machineVar: Var[Machine]): Binding[Node] = {
-    def onStep(): Unit = machineVar.value.step.foreach(machineVar.value = _)
+  def codePanel(
+    code: String,
+    codeError: Option[String],
+    dispatch: Dispatch
+  ) = {
+    <div class="codePanel">
+      <textarea onchange={ (e: Event) => dispatch.setCode(e.target.asInstanceOf[TextArea].value) }>
+        { code }
+      </textarea>
+      <div>
+        { codeError match {
+            case Some(error) => <strong>{ error }</strong>
+            case None => <span/>
+        } }
+      </div>
+      <button onclick={ (_: Event) => dispatch.loadCode() }>Load</button>
+    </div>
+  }
 
+  @html
+  def machinePanel(
+    machineError: Option[String],
+    memory: String,
+    registers: Map[String, Int],
+    dispatch: Dispatch
+  ) = {
     <div class="machinePanel">
-      {
-        val machine = machineVar.bind
-        <pre>{ MemoryPrinter.print(machine.memory) }</pre>
-        <p>
-          { machine.error match {
-              case Some(error) => <strong>{ error }</strong>
-              case None => <span/>
-          } }
-        </p>
-        <p><strong>IP</strong> { String.format("%04X", machine.ip) }</p>
-        <p><strong>AX</strong> { String.format("%04X", machine.ax) }</p>
-        <p><strong>BX</strong> { String.format("%04X", machine.bx) }</p>
-        <button onclick={ (_: Event) => onStep() }>Step</button>
-      }
+      <pre>{ memory }</pre>
+      <p>
+        { machineError match {
+            case Some(error) => <strong>{ error }</strong>
+            case None => <span/>
+        } }
+      </p>
+      <p><strong>IP</strong> { String.format("%04X", registers("ip")) }</p>
+      <p><strong>AX</strong> { String.format("%04X", registers("ax")) }</p>
+      <p><strong>BX</strong> { String.format("%04X", registers("bx")) }</p>
+      <button onclick={ (_: Event) => dispatch.stepMachine() }>Step</button>
     </div>
   }
 }
