@@ -57,7 +57,9 @@ class Machine(val memory: Uint8Array) {
 
     0x1D -> Operation(fetchImmediateWord, movFromA),
     0x1E -> Operation(fetchImmediateWord, movFromX),
-    0x1F -> Operation(fetchImmediateWord, movFromY)
+    0x1F -> Operation(fetchImmediateWord, movFromY),
+
+    0x21 -> Operation(fetchImmediate, jmp)
   )
 
   private def fetchImmediate(): Unit =
@@ -98,6 +100,16 @@ class Machine(val memory: Uint8Array) {
   private def movFromA(): Unit = memory(fetched) = a.toShort
   private def movFromX(): Unit = memory(fetched) = x.toShort
   private def movFromY(): Unit = memory(fetched) = y.toShort
+
+  private def jmp(): Unit = {
+    val signed = if ((fetched & 0x80) == 0) {
+      fetched
+    } else {
+      -((~fetched & 0xFF) + 1)
+    }
+    println((fetched, signed))
+    ip = (ip + signed) & 0xFFFF
+  }
 
   private def nextInstructionByte(): Int = {
     val result = memory(ip)

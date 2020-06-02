@@ -29,10 +29,11 @@ private[assembler] object ProgramParser {
     P(identifier ~ operand.rep(sep = ","./) ~ Index).map((Instruction.apply _).tupled)
 
   private def operand[_: P]: P[Operand] =
-    P(register | addressReference | immediate)
+    P(register | addressReference | immediate | symbol)
 
   private def immediate[_: P]: P[Operand] = P(number.map(Operand.Immediate))
   private def addressReference[_: P]: P[Operand] = P("[" ~ number ~ "]").map(Operand.Address)
+  private def symbol[_: P]: P[Operand] = P(identifier.map(Operand.Symbol))
 
   private def register[_: P]: P[Operand] =
     P("a".!.map(_ => Operand.A) | "x".!.map(_ => Operand.X) | "y".!.map(_ => Operand.Y))

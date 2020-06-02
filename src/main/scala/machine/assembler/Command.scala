@@ -25,6 +25,7 @@ private[assembler]
 object Operand {
   final case class Address(address: Int) extends Operand
   final case class Immediate(value: Int) extends Operand
+  final case class Symbol(symbol: String) extends Operand
 
   sealed trait Register extends Operand
   case object A extends Register
