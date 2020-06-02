@@ -115,9 +115,11 @@ private[assembler] object BytecodeBuilder {
         case Seq(Address(addr), X) => Final.withAbsoluteAddress(0x1E, addr)
         case Seq(Address(addr), Y) => Final.withAbsoluteAddress(0x1F, addr)
       },
-      "jmp" -> {
-        case Seq(Symbol(sym)) => NeedsRelativeOffset(0x21, sym)
-      }
+      "jmp" -> { case Seq(Symbol(sym)) => NeedsRelativeOffset(0x21, sym) },
+      "jz" -> { case Seq(Symbol(sym)) => NeedsRelativeOffset(0x22, sym) },
+      "jnz" -> { case Seq(Symbol(sym)) => NeedsRelativeOffset(0x23, sym) },
+      "jc" -> { case Seq(Symbol(sym)) => NeedsRelativeOffset(0x24, sym) },
+      "jnc" -> { case Seq(Symbol(sym)) => NeedsRelativeOffset(0x25, sym) }
     )
   }
 }
