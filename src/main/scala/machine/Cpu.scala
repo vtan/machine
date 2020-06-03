@@ -38,24 +38,28 @@ class Cpu(bus: Bus) {
     0x01 -> Operation(fetchImmediate, adc),
     0x02 -> Operation(fetchAddress, adc),
 
-    0x11 -> Operation(fetchImmediate, movToA),
-    0x12 -> Operation(fetchAddress, movToA),
-    0x13 -> Operation(fetchX, movToA),
-    0x14 -> Operation(fetchY, movToA),
+    0x09 -> Operation(fetchReg(() => a), inc(a = _)),
+    0x0A -> Operation(fetchReg(() => x), inc(x = _)),
+    0x0B -> Operation(fetchReg(() => y), inc(y = _)),
 
-    0x15 -> Operation(fetchImmediate, movToX),
-    0x16 -> Operation(fetchAddress, movToX),
-    0x17 -> Operation(fetchA, movToX),
-    0x18 -> Operation(fetchY, movToX),
+    0x11 -> Operation(fetchImmediate, movToReg(a = _)),
+    0x12 -> Operation(fetchAddress, movToReg(a = _)),
+    0x13 -> Operation(fetchReg(() => x), movToReg(a = _)),
+    0x14 -> Operation(fetchReg(() => y), movToReg(a = _)),
 
-    0x19 -> Operation(fetchImmediate, movToY),
-    0x1A -> Operation(fetchAddress, movToY),
-    0x1B -> Operation(fetchA, movToY),
-    0x1C -> Operation(fetchX, movToY),
+    0x15 -> Operation(fetchImmediate, movToReg(x = _)),
+    0x16 -> Operation(fetchAddress, movToReg(x = _)),
+    0x17 -> Operation(fetchReg(() => a), movToReg(x = _)),
+    0x18 -> Operation(fetchReg(() => y), movToReg(x = _)),
 
-    0x1D -> Operation(fetchImmediateWord, movFromA),
-    0x1E -> Operation(fetchImmediateWord, movFromX),
-    0x1F -> Operation(fetchImmediateWord, movFromY),
+    0x19 -> Operation(fetchImmediate, movToReg(y = _)),
+    0x1A -> Operation(fetchAddress, movToReg(y = _)),
+    0x1B -> Operation(fetchReg(() => a), movToReg(y = _)),
+    0x1C -> Operation(fetchReg(() => x), movToReg(y = _)),
+
+    0x1D -> Operation(fetchImmediateWord, movFromReg(() => a)),
+    0x1E -> Operation(fetchImmediateWord, movFromReg(() => x)),
+    0x1F -> Operation(fetchImmediateWord, movFromReg(() => y)),
 
     0x21 -> Operation(fetchImmediate, jmp),
     0x22 -> Operation(fetchImmediate, jz),
@@ -78,9 +82,8 @@ class Cpu(bus: Bus) {
     fetched = bus.read(fetched).toInt
   }
 
-  private def fetchA(): Unit = fetched = a
-  private def fetchX(): Unit = fetched = x
-  private def fetchY(): Unit = fetched = y
+  private def fetchReg(get: () => Int)(): Unit =
+    fetched = get()
 
   private def adc(): Unit = {
     val sum = a + fetched + (if ((flags & flagCarry) == 0) 0 else 1)
@@ -95,13 +98,17 @@ class Cpu(bus: Bus) {
     a = result
   }
 
-  private def movToA(): Unit = a = fetched
-  private def movToX(): Unit = x = fetched
-  private def movToY(): Unit = y = fetched
+  private def inc(set: Int => ())(): Unit = {
+    val result = (fetched + 1) & 0xFF
+    set(result)
+    setFlag(flagZero, result == 0)
+  }
 
-  private def movFromA(): Unit = bus.write(fetched, a.toShort)
-  private def movFromX(): Unit = bus.write(fetched, x.toShort)
-  private def movFromY(): Unit = bus.write(fetched, y.toShort)
+  private def movToReg(set: Int => ())(): Unit =
+    set(fetched)
+
+  private def movFromReg(get: () => Int)(): Unit =
+    bus.write(fetched, get().toShort)
 
   private def jmp(): Unit = {
     val signed = if ((fetched & 0x80) == 0) {
@@ -129,6 +136,13 @@ class Cpu(bus: Bus) {
     ip = (ip + 1) & 0xFFFF
     result.toInt
   }
+
+  private def setFlag(flag: Int, value: Boolean): Unit =
+    if (value) {
+      flags |= flag
+    } else {
+      flags &= ~flag
+    }
 }
 
 private final case class Operation(

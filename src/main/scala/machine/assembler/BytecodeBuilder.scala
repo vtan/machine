@@ -95,6 +95,11 @@ private[assembler] object BytecodeBuilder {
         case Seq(Immediate(imm)) => Final(0x01, imm)
         case Seq(Address(addr)) => Final.withAbsoluteAddress(0x02, addr)
       },
+      "inc" -> {
+        case Seq(A) => Final(0x09)
+        case Seq(X) => Final(0x0A)
+        case Seq(Y) => Final(0x0B)
+      },
       "mov" -> {
         case Seq(A, Immediate(imm)) => Final(0x11, imm)
         case Seq(A, Address(addr)) => Final.withAbsoluteAddress(0x12, addr)
