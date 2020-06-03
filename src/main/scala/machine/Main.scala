@@ -93,7 +93,7 @@ object Main {
   def machinePanel(state: State): Binding[Node] = {
     <div class="machinePanel">
       {
-        val canvas = <canvas id="displayCanvas" />
+        val canvas = <canvas id="displayCanvas" width="128" height="128" />
         state.canvasChanged(canvas.bind)
         canvas
       }
