@@ -38,8 +38,8 @@ class State(
         dom.window.localStorage.setItem("code", code.value)
     }
 
-  def stepMachine(): Unit = {
-    machine.cpu.step()
+  def stepMachine(steps: Int): Unit = {
+    machine.cpu.stepMany(steps)
     machineUpdated()
   }
 
@@ -113,7 +113,9 @@ object Main {
         <p><strong>X</strong> { String.format("%02X", registers("x")) }</p>
         <p><strong>Y</strong> { String.format("%02X", registers("y")) }</p>
         <p><strong>FLAGS</strong> { String.format("%02X", registers("flags")) }</p>
-        <button onclick={ (_: Event) => state.stepMachine() }>Step</button>
+        <button onclick={ (_: Event) => state.stepMachine(1) }>Step</button>
+        <button onclick={ (_: Event) => state.stepMachine(10) }>Step 10</button>
+        <button onclick={ (_: Event) => state.stepMachine(100) }>Step 100</button>
       }
     </div>
   }

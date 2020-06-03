@@ -34,51 +34,74 @@ class Cpu(bus: Bus) {
       }
     }
 
+  def stepMany(steps: Int): Unit =
+    (1 to steps).foreach(_ => step())
+
+  // TODO use an array?
   private val opcodes: Map[Int, Operation] = Map(
     0x01 -> Operation(fetchImmediate, adc),
-    0x02 -> Operation(fetchAddress, adc),
+    0x02 -> Operation(fetchFromAddress, adc),
 
     0x09 -> Operation(fetchReg(() => a), inc(a = _)),
     0x0A -> Operation(fetchReg(() => x), inc(x = _)),
     0x0B -> Operation(fetchReg(() => y), inc(y = _)),
 
     0x11 -> Operation(fetchImmediate, movToReg(a = _)),
-    0x12 -> Operation(fetchAddress, movToReg(a = _)),
+    0x12 -> Operation(fetchFromAddress, movToReg(a = _)),
     0x13 -> Operation(fetchReg(() => x), movToReg(a = _)),
     0x14 -> Operation(fetchReg(() => y), movToReg(a = _)),
 
     0x15 -> Operation(fetchImmediate, movToReg(x = _)),
-    0x16 -> Operation(fetchAddress, movToReg(x = _)),
+    0x16 -> Operation(fetchFromAddress, movToReg(x = _)),
     0x17 -> Operation(fetchReg(() => a), movToReg(x = _)),
     0x18 -> Operation(fetchReg(() => y), movToReg(x = _)),
 
     0x19 -> Operation(fetchImmediate, movToReg(y = _)),
-    0x1A -> Operation(fetchAddress, movToReg(y = _)),
+    0x1A -> Operation(fetchFromAddress, movToReg(y = _)),
     0x1B -> Operation(fetchReg(() => a), movToReg(y = _)),
     0x1C -> Operation(fetchReg(() => x), movToReg(y = _)),
 
-    0x1D -> Operation(fetchImmediateWord, movFromReg(() => a)),
-    0x1E -> Operation(fetchImmediateWord, movFromReg(() => x)),
-    0x1F -> Operation(fetchImmediateWord, movFromReg(() => y)),
+    0x1D -> Operation(fetchAddress, movFromReg(() => a)),
+    0x1E -> Operation(fetchAddress, movFromReg(() => x)),
+    0x1F -> Operation(fetchAddress, movFromReg(() => y)),
 
     0x21 -> Operation(fetchImmediate, jmp),
     0x22 -> Operation(fetchImmediate, jz),
     0x23 -> Operation(fetchImmediate, jnz),
     0x24 -> Operation(fetchImmediate, jc),
-    0x25 -> Operation(fetchImmediate, jnc)
+    0x25 -> Operation(fetchImmediate, jnc),
+
+    0x31 -> Operation(fetchIndexedAddress(() => x), movFromReg(() => a)),
+    0x32 -> Operation(fetchIndexedAddress(() => y), movFromReg(() => a)),
+    0x33 -> Operation(fetchFromIndexedAddress(() => x), movToReg(a = _)),
+    0x34 -> Operation(fetchFromIndexedAddress(() => y), movToReg(a = _)),
+    0x35 -> Operation(fetchIndexedAddress(() => y), movFromReg(() => x)),
+    0x36 -> Operation(fetchFromIndexedAddress(() => y), movToReg(x = _)),
+    0x37 -> Operation(fetchIndexedAddress(() => x), movFromReg(() => y)),
+    0x38 -> Operation(fetchFromIndexedAddress(() => x), movToReg(y = _))
   )
 
   private def fetchImmediate(): Unit =
     fetched = nextInstructionByte()
 
-  private def fetchImmediateWord(): Unit =  {
+  private def fetchAddress(): Unit =  {
     val lo = nextInstructionByte()
     val hi = nextInstructionByte()
     fetched = lo | hi << 8
   }
 
-  private def fetchAddress(): Unit = {
-    fetchImmediateWord()
+  private def fetchFromAddress(): Unit = {
+    fetchAddress()
+    fetched = bus.read(fetched).toInt
+  }
+
+  private def fetchIndexedAddress(index: () => Int)(): Unit = {
+    fetchAddress()
+    fetched = (fetched + index()) & 0xFFFF
+  }
+
+  private def fetchFromIndexedAddress(index: () => Int)(): Unit = {
+    fetchIndexedAddress(index)
     fetched = bus.read(fetched).toInt
   }
 
