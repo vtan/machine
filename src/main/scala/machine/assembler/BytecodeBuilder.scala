@@ -101,39 +101,41 @@ private[assembler] object BytecodeBuilder {
         case Seq(Y) => Final(0x0B)
       },
       "mov" -> {
-        case Seq(A, Immediate(imm)) => Final(0x11, imm)
-        case Seq(A, Address(addr)) => Final.withAbsoluteAddress(0x12, addr)
-        case Seq(A, X) => Final(0x13)
-        case Seq(A, Y) => Final(0x14)
+        case Seq(A, Immediate(imm)) => Final(0x10, imm)
+        case Seq(A, Address(addr)) => Final.withAbsoluteAddress(0x11, addr)
+        case Seq(A, IndexedAddress(addr, X)) => Final.withAbsoluteAddress(0x12, addr)
+        case Seq(A, IndexedAddress(addr, Y)) => Final.withAbsoluteAddress(0x13, addr)
+        case Seq(A, IndirectAddress(addr)) => Final.withAbsoluteAddress(0x14, addr)
 
-        case Seq(X, Immediate(imm)) => Final(0x15, imm)
-        case Seq(X, Address(addr)) => Final.withAbsoluteAddress(0x16, addr)
-        case Seq(X, A) => Final(0x17)
-        case Seq(X, Y) => Final(0x18)
+        case Seq(X, Immediate(imm)) => Final(0x16, imm)
+        case Seq(X, Address(addr)) => Final.withAbsoluteAddress(0x17, addr)
+        case Seq(X, IndexedAddress(addr, Y)) => Final.withAbsoluteAddress(0x18, addr)
 
         case Seq(Y, Immediate(imm)) => Final(0x19, imm)
         case Seq(Y, Address(addr)) => Final.withAbsoluteAddress(0x1A, addr)
-        case Seq(Y, A) => Final(0x1B)
-        case Seq(Y, Y) => Final(0x1C)
+        case Seq(Y, IndexedAddress(addr, X)) => Final.withAbsoluteAddress(0x1B, addr)
 
-        case Seq(Address(addr), A) => Final.withAbsoluteAddress(0x1D, addr)
-        case Seq(Address(addr), X) => Final.withAbsoluteAddress(0x1E, addr)
-        case Seq(Address(addr), Y) => Final.withAbsoluteAddress(0x1F, addr)
+        case Seq(Address(addr), A) => Final.withAbsoluteAddress(0x20, addr)
+        case Seq(IndexedAddress(addr, X), A) => Final.withAbsoluteAddress(0x21, addr)
+        case Seq(IndexedAddress(addr, Y), A) => Final.withAbsoluteAddress(0x22, addr)
+        case Seq(IndirectAddress(addr), A) => Final.withAbsoluteAddress(0x23, addr)
 
-        case Seq(IndexedAddress(addr, X), A) => Final.withAbsoluteAddress(0x31, addr)
-        case Seq(IndexedAddress(addr, Y), A) => Final.withAbsoluteAddress(0x32, addr)
-        case Seq(A, IndexedAddress(addr, X)) => Final.withAbsoluteAddress(0x33, addr)
-        case Seq(A, IndexedAddress(addr, X)) => Final.withAbsoluteAddress(0x34, addr)
-        case Seq(IndexedAddress(addr, Y), X) => Final.withAbsoluteAddress(0x35, addr)
-        case Seq(X, IndexedAddress(addr, Y)) => Final.withAbsoluteAddress(0x36, addr)
-        case Seq(IndexedAddress(addr, X), Y) => Final.withAbsoluteAddress(0x37, addr)
-        case Seq(Y, IndexedAddress(addr, X)) => Final.withAbsoluteAddress(0x38, addr)
+        case Seq(Address(addr), X) => Final.withAbsoluteAddress(0x25, addr)
+        case Seq(IndexedAddress(addr, Y), X) => Final.withAbsoluteAddress(0x26, addr)
+
+        case Seq(Address(addr), Y) => Final.withAbsoluteAddress(0x27, addr)
+        case Seq(IndexedAddress(addr, X), Y) => Final.withAbsoluteAddress(0x28, addr)
+
+        case Seq(X, A) => Final(0x30)
+        case Seq(Y, A) => Final(0x31)
+        case Seq(A, X) => Final(0x32)
+        case Seq(A, Y) => Final(0x33)
       },
-      "jmp" -> { case Seq(Symbol(sym)) => NeedsRelativeOffset(0x21, sym) },
-      "jz" -> { case Seq(Symbol(sym)) => NeedsRelativeOffset(0x22, sym) },
-      "jnz" -> { case Seq(Symbol(sym)) => NeedsRelativeOffset(0x23, sym) },
-      "jc" -> { case Seq(Symbol(sym)) => NeedsRelativeOffset(0x24, sym) },
-      "jnc" -> { case Seq(Symbol(sym)) => NeedsRelativeOffset(0x25, sym) }
+      "jmp" -> { case Seq(Symbol(sym)) => NeedsRelativeOffset(0x40, sym) },
+      "jz" -> { case Seq(Symbol(sym)) => NeedsRelativeOffset(0x41, sym) },
+      "jnz" -> { case Seq(Symbol(sym)) => NeedsRelativeOffset(0x42, sym) },
+      "jc" -> { case Seq(Symbol(sym)) => NeedsRelativeOffset(0x43, sym) },
+      "jnc" -> { case Seq(Symbol(sym)) => NeedsRelativeOffset(0x44, sym) }
     )
   }
 }

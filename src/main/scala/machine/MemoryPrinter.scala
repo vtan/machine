@@ -19,6 +19,7 @@ object MemoryPrinter {
           stringBuilder.append(String.format(" %02X", byte))
         }
         stringBuilder.append("\n")
+        prevEmpty = false
       }
       i += 1
     }

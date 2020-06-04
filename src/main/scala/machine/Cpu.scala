@@ -46,39 +46,41 @@ class Cpu(bus: Bus) {
     0x0A -> Operation(fetchReg(() => x), inc(x = _)),
     0x0B -> Operation(fetchReg(() => y), inc(y = _)),
 
-    0x11 -> Operation(fetchImmediate, movToReg(a = _)),
-    0x12 -> Operation(fetchFromAddress, movToReg(a = _)),
-    0x13 -> Operation(fetchReg(() => x), movToReg(a = _)),
-    0x14 -> Operation(fetchReg(() => y), movToReg(a = _)),
+    0x10 -> Operation(fetchImmediate, movToReg(a = _)),
+    0x11 -> Operation(fetchFromAddress, movToReg(a = _)),
+    0x12 -> Operation(fetchFromIndexedAddress(() => x), movToReg(a = _)),
+    0x13 -> Operation(fetchFromIndexedAddress(() => y), movToReg(a = _)),
+    0x14 -> Operation(fetchFromIndirectAddress, movToReg(a = _)),
 
-    0x15 -> Operation(fetchImmediate, movToReg(x = _)),
-    0x16 -> Operation(fetchFromAddress, movToReg(x = _)),
-    0x17 -> Operation(fetchReg(() => a), movToReg(x = _)),
-    0x18 -> Operation(fetchReg(() => y), movToReg(x = _)),
+    0x16 -> Operation(fetchImmediate, movToReg(x = _)),
+    0x17 -> Operation(fetchFromAddress, movToReg(x = _)),
+    0x18 -> Operation(fetchFromIndexedAddress(() => y), movToReg(x = _)),
 
     0x19 -> Operation(fetchImmediate, movToReg(y = _)),
     0x1A -> Operation(fetchFromAddress, movToReg(y = _)),
-    0x1B -> Operation(fetchReg(() => a), movToReg(y = _)),
-    0x1C -> Operation(fetchReg(() => x), movToReg(y = _)),
+    0x1B -> Operation(fetchFromIndexedAddress(() => x), movToReg(y = _)),
 
-    0x1D -> Operation(fetchAddress, movFromReg(() => a)),
-    0x1E -> Operation(fetchAddress, movFromReg(() => x)),
-    0x1F -> Operation(fetchAddress, movFromReg(() => y)),
+    0x20 -> Operation(fetchAddress, movFromReg(() => a)),
+    0x21 -> Operation(fetchIndexedAddress(() => x), movFromReg(() => a)),
+    0x22 -> Operation(fetchIndexedAddress(() => y), movFromReg(() => a)),
+    0x23 -> Operation(fetchIndirectAddress, movFromReg(() => a)),
 
-    0x21 -> Operation(fetchImmediate, jmp),
-    0x22 -> Operation(fetchImmediate, jz),
-    0x23 -> Operation(fetchImmediate, jnz),
-    0x24 -> Operation(fetchImmediate, jc),
-    0x25 -> Operation(fetchImmediate, jnc),
+    0x25 -> Operation(fetchAddress, movFromReg(() => x)),
+    0x26 -> Operation(fetchIndexedAddress(() => y), movFromReg(() => x)),
 
-    0x31 -> Operation(fetchIndexedAddress(() => x), movFromReg(() => a)),
-    0x32 -> Operation(fetchIndexedAddress(() => y), movFromReg(() => a)),
-    0x33 -> Operation(fetchFromIndexedAddress(() => x), movToReg(a = _)),
-    0x34 -> Operation(fetchFromIndexedAddress(() => y), movToReg(a = _)),
-    0x35 -> Operation(fetchIndexedAddress(() => y), movFromReg(() => x)),
-    0x36 -> Operation(fetchFromIndexedAddress(() => y), movToReg(x = _)),
-    0x37 -> Operation(fetchIndexedAddress(() => x), movFromReg(() => y)),
-    0x38 -> Operation(fetchFromIndexedAddress(() => x), movToReg(y = _))
+    0x27 -> Operation(fetchAddress, movFromReg(() => y)),
+    0x28 -> Operation(fetchIndexedAddress(() => x), movFromReg(() => y)),
+
+    0x30 -> Operation(fetchReg(() => a), movToReg(x = _)),
+    0x31 -> Operation(fetchReg(() => a), movToReg(y = _)),
+    0x32 -> Operation(fetchReg(() => x), movToReg(a = _)),
+    0x33 -> Operation(fetchReg(() => y), movToReg(a = _)),
+
+    0x40 -> Operation(fetchImmediate, jmp),
+    0x41 -> Operation(fetchImmediate, jz),
+    0x42 -> Operation(fetchImmediate, jnz),
+    0x43 -> Operation(fetchImmediate, jc),
+    0x44 -> Operation(fetchImmediate, jnc),
   )
 
   private def fetchImmediate(): Unit =
@@ -102,6 +104,18 @@ class Cpu(bus: Bus) {
 
   private def fetchFromIndexedAddress(index: () => Int)(): Unit = {
     fetchIndexedAddress(index)
+    fetched = bus.read(fetched).toInt
+  }
+
+  private def fetchIndirectAddress(): Unit = {
+    fetchAddress()
+    val lo = bus.read(fetched).toInt
+    val hi = bus.read(fetched + 1).toInt
+    fetched = (lo | hi << 8)
+  }
+
+  private def fetchFromIndirectAddress(): Unit = {
+    fetchIndirectAddress()
     fetched = bus.read(fetched).toInt
   }
 

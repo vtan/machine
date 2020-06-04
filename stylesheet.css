@@ -13,6 +13,7 @@ body {
 .mainContainer {
   display: flex;
   height: 100vh;
+  max-height: 100vh;
 }
 
 .codePanel {
@@ -34,8 +35,15 @@ body {
 }
 
 .machinePanel {
+  display: flex;
+  flex-direction: column;
+
   flex: 1 1 0;
   padding: 1em;
+}
+
+.machinePanel > * + * {
+  margin-top: 0.5rem;
 }
 
 .machinePanel canvas {
@@ -43,4 +51,30 @@ body {
   height: 384px;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
+}
+
+.cpuRegisters {
+  display: flex;
+  flex-direction: row;
+}
+
+.cpuRegisters > * + * {
+  margin-left: 2rem;
+}
+
+.cpuRegisters strong {
+  background-color: #E8E8E8;
+}
+
+.cpuError {
+  color: #F00;
+}
+
+.machineMemory {
+  flex-shrink: 1;
+  overflow-y: scroll;
+}
+
+.machineMemory pre {
+  margin: 0;
 }

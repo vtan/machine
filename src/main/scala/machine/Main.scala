@@ -97,26 +97,36 @@ object Main {
         state.canvasChanged(canvas.bind)
         canvas
       }
-      {
-        val machineError = state.machineError.bind
-        val memory = state.memory.bind
-        val registers = state.registers.bind
-        <pre>{ memory }</pre>
-        <p>
-          { machineError match {
-              case Some(error) => <strong>{ error }</strong>
-              case None => <span/>
-          } }
-        </p>
-        <p><strong>IP</strong> { String.format("%04X", registers("ip")) }</p>
-        <p><strong>A</strong> { String.format("%02X", registers("a")) }</p>
-        <p><strong>X</strong> { String.format("%02X", registers("x")) }</p>
-        <p><strong>Y</strong> { String.format("%02X", registers("y")) }</p>
-        <p><strong>FLAGS</strong> { String.format("%02X", registers("flags")) }</p>
+      <div class="machineStep">
         <button onclick={ (_: Event) => state.stepMachine(1) }>Step</button>
         <button onclick={ (_: Event) => state.stepMachine(10) }>Step 10</button>
         <button onclick={ (_: Event) => state.stepMachine(100) }>Step 100</button>
-      }
+        <button onclick={ (_: Event) => state.stepMachine(1000) }>Step 1000</button>
+      </div>
+      <div class="cpuError">
+        {
+          state.machineError.bind match {
+            case Some(error) => <span>{ error }</span>
+            case None => <span />
+          }
+        }
+      </div>
+      <div class="cpuRegisters">
+        {
+          val registers = state.registers.bind
+          <div class="cpuRegister"><strong>IP</strong> { String.format("%04X", registers("ip")) }</div>
+          <div class="cpuRegister"><strong>A</strong> { String.format("%02X", registers("a")) }</div>
+          <div class="cpuRegister"><strong>X</strong> { String.format("%02X", registers("x")) }</div>
+          <div class="cpuRegister"><strong>Y</strong> { String.format("%02X", registers("y")) }</div>
+          <div class="cpuRegister"><strong>FLAGS</strong> { String.format("%02X", registers("flags")) }</div>
+        }
+      </div>
+      <div class="machineMemory">
+        {
+          val memory = state.memory.bind
+          <pre>{ memory }</pre>
+        }
+      </div>
     </div>
   }
 }

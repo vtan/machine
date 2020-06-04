@@ -29,7 +29,7 @@ private[assembler] object ProgramParser {
     P(identifier ~ operand.rep(sep = ","./) ~ Index).map((Instruction.apply _).tupled)
 
   private def operand[_: P]: P[Operand] =
-    P((register ~~ !identifier) | addressReference | immediate | symbol)
+    P((register ~~ !identifier) | indirectAddressReference | addressReference | immediate | symbol)
 
   private def immediate[_: P]: P[Operand] = P(number.map(Operand.Immediate))
   private def symbol[_: P]: P[Operand] = P(identifier.map(Operand.Symbol))
@@ -39,6 +39,9 @@ private[assembler] object ProgramParser {
       case (address, None) => Operand.Address(address)
       case (address, Some(reg)) => Operand.IndexedAddress(address, reg)
     }
+
+  private def indirectAddressReference[_: P]: P[Operand] =
+    P("[[" ~ number ~ "]]").map(Operand.IndirectAddress)
 
   private def register[_: P]: P[Operand.Register] =
     P("a".!.map(_ => Operand.A) | "x".!.map(_ => Operand.X) | "y".!.map(_ => Operand.Y))

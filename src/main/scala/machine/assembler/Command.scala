@@ -24,6 +24,7 @@ sealed trait Operand
 private[assembler]
 object Operand {
   final case class Address(address: Int) extends Operand
+  final case class IndirectAddress(address: Int) extends Operand
   final case class IndexedAddress(address: Int, register: Register) extends Operand
   final case class Immediate(value: Int) extends Operand
   final case class Symbol(symbol: String) extends Operand
