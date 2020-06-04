@@ -12,8 +12,6 @@ class Cpu(bus: Bus) {
   private val flagZero: Int = 1 << 0
   private val flagCarry: Int = 1 << 1
 
-  private var fetched: Int = 0
-
   def registers: Map[String, Int] = Map(
     "a" -> a,
     "x" -> x,
@@ -26,9 +24,8 @@ class Cpu(bus: Bus) {
     if (error.isEmpty) {
       val opcodeHead = nextInstructionByte()
       opcodes.get(opcodeHead.toInt) match {
-        case Some(Operation(fetch, execute)) =>
-          fetch()
-          execute()
+        case Some(Operation(runWithAddress, getAddress)) =>
+          runWithAddress(getAddress())
         case None =>
           error = Some(s"Invalid opcode: $opcodeHead")
       }
@@ -37,140 +34,12 @@ class Cpu(bus: Bus) {
   def stepMany(steps: Int): Unit =
     (1 to steps).foreach(_ => step())
 
-  // TODO use an array?
-  private val opcodes: Map[Int, Operation] = Map(
-    0x01 -> Operation(fetchImmediate, adc),
-    0x02 -> Operation(fetchFromAddress, adc),
-
-    0x09 -> Operation(fetchReg(() => a), inc(a = _)),
-    0x0A -> Operation(fetchReg(() => x), inc(x = _)),
-    0x0B -> Operation(fetchReg(() => y), inc(y = _)),
-
-    0x10 -> Operation(fetchImmediate, movToReg(a = _)),
-    0x11 -> Operation(fetchFromAddress, movToReg(a = _)),
-    0x12 -> Operation(fetchFromIndexedAddress(() => x), movToReg(a = _)),
-    0x13 -> Operation(fetchFromIndexedAddress(() => y), movToReg(a = _)),
-    0x14 -> Operation(fetchFromIndirectAddress, movToReg(a = _)),
-
-    0x16 -> Operation(fetchImmediate, movToReg(x = _)),
-    0x17 -> Operation(fetchFromAddress, movToReg(x = _)),
-    0x18 -> Operation(fetchFromIndexedAddress(() => y), movToReg(x = _)),
-
-    0x19 -> Operation(fetchImmediate, movToReg(y = _)),
-    0x1A -> Operation(fetchFromAddress, movToReg(y = _)),
-    0x1B -> Operation(fetchFromIndexedAddress(() => x), movToReg(y = _)),
-
-    0x20 -> Operation(fetchAddress, movFromReg(() => a)),
-    0x21 -> Operation(fetchIndexedAddress(() => x), movFromReg(() => a)),
-    0x22 -> Operation(fetchIndexedAddress(() => y), movFromReg(() => a)),
-    0x23 -> Operation(fetchIndirectAddress, movFromReg(() => a)),
-
-    0x25 -> Operation(fetchAddress, movFromReg(() => x)),
-    0x26 -> Operation(fetchIndexedAddress(() => y), movFromReg(() => x)),
-
-    0x27 -> Operation(fetchAddress, movFromReg(() => y)),
-    0x28 -> Operation(fetchIndexedAddress(() => x), movFromReg(() => y)),
-
-    0x30 -> Operation(fetchReg(() => a), movToReg(x = _)),
-    0x31 -> Operation(fetchReg(() => a), movToReg(y = _)),
-    0x32 -> Operation(fetchReg(() => x), movToReg(a = _)),
-    0x33 -> Operation(fetchReg(() => y), movToReg(a = _)),
-
-    0x40 -> Operation(fetchImmediate, jmp),
-    0x41 -> Operation(fetchImmediate, jz),
-    0x42 -> Operation(fetchImmediate, jnz),
-    0x43 -> Operation(fetchImmediate, jc),
-    0x44 -> Operation(fetchImmediate, jnc),
-  )
-
-  private def fetchImmediate(): Unit =
-    fetched = nextInstructionByte()
-
-  private def fetchAddress(): Unit =  {
-    val lo = nextInstructionByte()
-    val hi = nextInstructionByte()
-    fetched = lo | hi << 8
-  }
-
-  private def fetchFromAddress(): Unit = {
-    fetchAddress()
-    fetched = bus.read(fetched).toInt
-  }
-
-  private def fetchIndexedAddress(index: () => Int)(): Unit = {
-    fetchAddress()
-    fetched = (fetched + index()) & 0xFFFF
-  }
-
-  private def fetchFromIndexedAddress(index: () => Int)(): Unit = {
-    fetchIndexedAddress(index)
-    fetched = bus.read(fetched).toInt
-  }
-
-  private def fetchIndirectAddress(): Unit = {
-    fetchAddress()
-    val lo = bus.read(fetched).toInt
-    val hi = bus.read(fetched + 1).toInt
-    fetched = (lo | hi << 8)
-  }
-
-  private def fetchFromIndirectAddress(): Unit = {
-    fetchIndirectAddress()
-    fetched = bus.read(fetched).toInt
-  }
-
-  private def fetchReg(get: () => Int)(): Unit =
-    fetched = get()
-
-  private def adc(): Unit = {
-    val sum = a + fetched + (if ((flags & flagCarry) == 0) 0 else 1)
-    val result = sum & 0xFF
-    flags = 0
-    if (result == 0) {
-      flags |= flagZero
-    }
-    if ((sum & 0x100) != 0) {
-      flags |= flagCarry
-    }
-    a = result
-  }
-
-  private def inc(set: Int => ())(): Unit = {
-    val result = (fetched + 1) & 0xFF
-    set(result)
-    setFlag(flagZero, result == 0)
-  }
-
-  private def movToReg(set: Int => ())(): Unit =
-    set(fetched)
-
-  private def movFromReg(get: () => Int)(): Unit =
-    bus.write(fetched, get().toShort)
-
-  private def jmp(): Unit = {
-    val signed = if ((fetched & 0x80) == 0) {
-      fetched
-    } else {
-      -((~fetched & 0xFF) + 1)
-    }
-    ip = (ip + signed) & 0xFFFF
-  }
-
-  private def jz(): Unit =
-    if ((flags & flagZero) != 0) jmp()
-
-  private def jnz(): Unit =
-    if ((flags & flagZero) == 0) jmp()
-
-  private def jc(): Unit =
-    if ((flags & flagCarry) != 0) jmp()
-
-  private def jnc(): Unit =
-    if ((flags & flagCarry) == 0) jmp()
+  private def stepInstructionPointer(): Unit =
+    ip = (ip + 1) & 0xFFFF
 
   private def nextInstructionByte(): Int = {
     val result = bus.read(ip)
-    ip = (ip + 1) & 0xFFFF
+    stepInstructionPointer()
     result.toInt
   }
 
@@ -180,9 +49,146 @@ class Cpu(bus: Bus) {
     } else {
       flags &= ~flag
     }
+
+  private def setZeroFlag(value: Int): Unit =
+    setFlag(flagZero, value == 0)
+
+  // TODO use an array?
+  private val opcodes: Map[Int, Operation] = {
+    import Addressing._, Instructions._
+    Map(
+      0x01 -> Operation(adc, immediate),
+      0x02 -> Operation(adc, absolute),
+
+      0x09 -> Operation(inc(() => a, a = _), implied),
+      0x0A -> Operation(inc(() => x, x = _), implied),
+      0x0B -> Operation(inc(() => y, y = _), implied),
+
+      0x10 -> Operation(movToReg(a = _), immediate),
+      0x11 -> Operation(movToReg(a = _), absolute),
+      0x12 -> Operation(movToReg(a = _), absoluteIndexed(() => x)),
+      0x13 -> Operation(movToReg(a = _), absoluteIndexed(() => y)),
+      0x14 -> Operation(movToReg(a = _), indirect),
+
+      0x16 -> Operation(movToReg(x = _), immediate),
+      0x17 -> Operation(movToReg(x = _), absolute),
+      0x18 -> Operation(movToReg(x = _), absoluteIndexed(() => y)),
+
+      0x19 -> Operation(movToReg(y = _), immediate),
+      0x1A -> Operation(movToReg(y = _), absolute),
+      0x1B -> Operation(movToReg(y = _), absoluteIndexed(() => x)),
+
+      0x20 -> Operation(movFromReg(() => a), absolute),
+      0x21 -> Operation(movFromReg(() => a), absoluteIndexed(() => x)),
+      0x22 -> Operation(movFromReg(() => a), absoluteIndexed(() => y)),
+      0x23 -> Operation(movFromReg(() => a), indirect),
+
+      0x25 -> Operation(movFromReg(() => x), absolute),
+      0x26 -> Operation(movFromReg(() => x), absoluteIndexed(() => y)),
+
+      0x27 -> Operation(movFromReg(() => y), absolute),
+      0x28 -> Operation(movFromReg(() => y), absoluteIndexed(() => x)),
+
+      0x30 -> Operation(movBetweenRegs(() => a, x = _), implied),
+      0x31 -> Operation(movBetweenRegs(() => a, y = _), implied),
+      0x32 -> Operation(movBetweenRegs(() => x, a = _), implied),
+      0x33 -> Operation(movBetweenRegs(() => y, a = _), implied),
+
+      0x40 -> Operation(jmp, relative),
+      0x41 -> Operation(jz, relative),
+      0x42 -> Operation(jnz, relative),
+      0x43 -> Operation(jc, relative),
+      0x44 -> Operation(jnc, relative),
+    )
+  }
+
+  private object Addressing {
+
+    def implied(): Int = 0
+
+    def immediate(): Int = {
+      val addr = ip
+      stepInstructionPointer()
+      addr
+    }
+
+    def relative(): Int = {
+      val unsigned = nextInstructionByte()
+      if ((unsigned & 0x80) == 0) {
+        unsigned
+      } else {
+        -((~unsigned & 0xFF) + 1)
+      }
+    }
+
+    def absolute(): Int = {
+      val lo = nextInstructionByte()
+      val hi = nextInstructionByte()
+      lo | hi << 8
+    }
+
+    def absoluteIndexed(reg: () => Int)(): Int = {
+      val lo = nextInstructionByte()
+      val hi = nextInstructionByte()
+      ((lo | hi << 8) + reg()) & 0xFFFF
+    }
+
+    def indirect(): Int = {
+      val addrLo = nextInstructionByte()
+      val addrHi = nextInstructionByte()
+      val addr = addrLo | addrHi << 8
+      val lo = bus.read(addr)
+      val hi = bus.read(addr + 1)
+      lo | hi << 8
+    }
+  }
+
+  private object Instructions {
+
+    def adc(address: Int): Unit = {
+      val sum = a + bus.read(address) + (if ((flags & flagCarry) == 0) 0 else 1)
+      val result = sum & 0xFF
+      setZeroFlag(result)
+      setFlag(flagCarry, (sum & 0x100) != 0)
+      a = result
+    }
+
+    def inc(get: () => Int, set: Int => ())(address: Int): Unit = {
+      val _ = address
+      val result = (get() + 1) & 0xFF
+      set(result)
+      setZeroFlag(result)
+    }
+
+    def movToReg(set: Int => ())(address: Int): Unit =
+      set(bus.read(address).toInt)
+
+    def movFromReg(get: () => Int)(address: Int): Unit =
+      bus.write(address, get().toShort)
+
+    def movBetweenRegs(get: () => Int, set: Int => ())(address: Int): Unit = {
+      val _ = address
+      set(get())
+    }
+
+    def jmp(address: Int): Unit =
+      ip = (ip + address) & 0xFFFF
+
+    def jz(address: Int): Unit =
+      if ((flags & flagZero) != 0) jmp(address)
+
+    def jnz(address: Int): Unit =
+      if ((flags & flagZero) == 0) jmp(address)
+
+    def jc(address: Int): Unit =
+      if ((flags & flagCarry) != 0) jmp(address)
+
+    def jnc(address: Int): Unit =
+      if ((flags & flagCarry) == 0) jmp(address)
+  }
 }
 
 private final case class Operation(
-  fetch: () => Unit,
-  execute: () => Unit
+  runWithAddress: Int => Unit,
+  getAddress: () => Int
 )
