@@ -99,6 +99,8 @@ private[assembler] object BytecodeBuilder {
         case Seq(A) => Final(0x09)
         case Seq(X) => Final(0x0A)
         case Seq(Y) => Final(0x0B)
+        case Seq(Address(addr)) => Final.withAbsoluteAddress(0x0C, addr)
+        case Seq(IndexedAddress(addr, X)) => Final.withAbsoluteAddress(0x0D, addr)
       },
       "mov" -> {
         case Seq(A, Immediate(imm)) => Final(0x10, imm)

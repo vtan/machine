@@ -60,9 +60,11 @@ class Cpu(bus: Bus) {
       0x01 -> Operation(adc, immediate),
       0x02 -> Operation(adc, absolute),
 
-      0x09 -> Operation(inc(() => a, a = _), implied),
-      0x0A -> Operation(inc(() => x, x = _), implied),
-      0x0B -> Operation(inc(() => y, y = _), implied),
+      0x09 -> Operation(incReg(() => a, a = _), implied),
+      0x0A -> Operation(incReg(() => x, x = _), implied),
+      0x0B -> Operation(incReg(() => y, y = _), implied),
+      0x0C -> Operation(incMem, absolute),
+      0x0D -> Operation(incMem, absoluteIndexed(() => x)),
 
       0x10 -> Operation(movToReg(a = _), immediate),
       0x11 -> Operation(movToReg(a = _), absolute),
@@ -153,10 +155,16 @@ class Cpu(bus: Bus) {
       a = result
     }
 
-    def inc(get: () => Int, set: Int => ())(address: Int): Unit = {
+    def incReg(get: () => Int, set: Int => ())(address: Int): Unit = {
       val _ = address
       val result = (get() + 1) & 0xFF
       set(result)
+      setZeroFlag(result)
+    }
+
+    def incMem(address: Int): Unit = {
+      val result = (bus.read(address) + 1) & 0xFF
+      bus.write(address, result.toShort)
       setZeroFlag(result)
     }
 
