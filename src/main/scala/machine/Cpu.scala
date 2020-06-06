@@ -3,10 +3,13 @@ package machine
 class Cpu(bus: Bus) {
   var error: Option[String] = None
 
+  private val stackPage: Int = 0xA0
+
   private var a: Int = 0
   private var x: Int = 0
   private var y: Int = 0
   private var ip: Int = 0
+  private var sp: Int = stackPage << 8 | 0xFF
   private var flags: Int = 0
 
   private val flagZero: Int = 1 << 0
@@ -17,7 +20,8 @@ class Cpu(bus: Bus) {
     "a" -> a,
     "x" -> x,
     "y" -> y,
-    "ip" -> ip
+    "ip" -> ip,
+    "sp" -> sp
   )
 
   def enabledFlags: String = {
@@ -50,6 +54,12 @@ class Cpu(bus: Bus) {
     stepInstructionPointer()
     result.toInt
   }
+
+  private def spInc(): Unit =
+    sp = stackPage << 8 | ((sp + 1) & 0xFF)
+
+  private def spDec() : Unit =
+    sp = stackPage << 8 | ((sp - 1) & 0xFF)
 
   private def setFlag(flag: Int, value: Boolean): Unit =
     if (value) {
@@ -112,6 +122,11 @@ class Cpu(bus: Bus) {
       0x42 -> Operation(jnz, relative),
       0x43 -> Operation(jc, relative),
       0x44 -> Operation(jnc, relative),
+      0x45 -> Operation(jn, relative),
+      0x46 -> Operation(jnn, relative),
+
+      0x49 -> Operation(call, absolute),
+      0x4A -> Operation(ret, implied)
     )
   }
 
@@ -214,6 +229,28 @@ class Cpu(bus: Bus) {
 
     def jnc(address: Int): Unit =
       if ((flags & flagCarry) == 0) jmp(address)
+
+    def jn(address: Int): Unit =
+      if ((flags & flagNegative) != 0) jmp(address)
+
+    def jnn(address: Int): Unit =
+      if ((flags & flagNegative) == 0) jmp(address)
+
+    def call(address: Int): Unit = {
+      bus.write(sp, ((ip >> 8) & 0xFF).toShort)
+      spDec()
+      bus.write(sp, (ip & 0xFF).toShort)
+      spDec()
+      ip = address
+    }
+
+    def ret(address: Int): Unit = {
+      val _ = address
+      spInc()
+      ip = bus.read(sp).toInt
+      spInc()
+      ip |= bus.read(sp).toInt << 8
+    }
   }
 }
 

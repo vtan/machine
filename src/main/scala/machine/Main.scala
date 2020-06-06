@@ -118,6 +118,7 @@ object Main {
           val registers = state.registers.bind
           val flags = state.flags.bind
           <div class="cpuRegister"><strong>IP</strong> { String.format("%04X", registers("ip")) }</div>
+          <div class="cpuRegister"><strong>SP</strong> { String.format("%04X", registers("sp")) }</div>
           <div class="cpuRegister"><strong>A</strong> { String.format("%02X", registers("a")) }</div>
           <div class="cpuRegister"><strong>X</strong> { String.format("%02X", registers("x")) }</div>
           <div class="cpuRegister"><strong>Y</strong> { String.format("%02X", registers("y")) }</div>

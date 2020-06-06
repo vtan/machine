@@ -161,7 +161,11 @@ private[assembler] object BytecodeBuilder {
       "jz" -> { case Seq(Immediate(imm)) => fromValueRelative(0x41, imm) },
       "jnz" -> { case Seq(Immediate(imm)) => fromValueRelative(0x42, imm) },
       "jc" -> { case Seq(Immediate(imm)) => fromValueRelative(0x43, imm) },
-      "jnc" -> { case Seq(Immediate(imm)) => fromValueRelative(0x44, imm) }
+      "jnc" -> { case Seq(Immediate(imm)) => fromValueRelative(0x44, imm) },
+      "jn" -> { case Seq(Immediate(imm)) => fromValueRelative(0x45, imm) },
+      "jnn" -> { case Seq(Immediate(imm)) => fromValueRelative(0x46, imm) },
+      "call" -> { case Seq(Immediate(imm)) => fromValue16(0x49, imm) },
+      "ret" -> { case Seq() => const(noOperand(0x4A)) }
     )
   }
 }
