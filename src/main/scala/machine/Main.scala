@@ -22,7 +22,7 @@ class State(
   private var canvas: Option[HTMLCanvasElement] = None
 
   def setCode(input: String): Unit =
-    code.value = input.toLowerCase
+    code.value = input
 
   def loadCode(): Unit =
     Assembler.assemble(code.value) match {

@@ -80,6 +80,33 @@ private[assembler] object BytecodeBuilder {
           Right(state.copy(symbolOffsets = state.symbolOffsets + (symbol -> value)))
         }
       case Directive("define", _, _) => Left("Invalid arguments")
+
+      case Directive("offset", Seq(DirectiveArgument.IntArg(offset)), _) =>
+        if (offset < state.currentOffset) {
+          Left(s"Current offset is already ${state.currentOffset}")
+        } else if (offset < 0 && offset >= 0xA000) {
+          Left(s"Offset must be below 0xA000")
+        } else {
+          Right(state.copy(
+            currentOffset = offset,
+            bytecode = state.bytecode.copy(
+              bytes = state.bytecode.bytes.padTo(offset, 0)
+            )
+          ))
+        }
+      case Directive("offset", _, _) => Left("Invalid arguments")
+
+      case Directive("byte", args, _) =>
+        val (invalid, bytes) = args.partitionMap { case DirectiveArgument.IntArg(i) => Right(i); case _ => Left(()) }
+        if (invalid.nonEmpty || bytes.exists(n => n < -128 || n > 255)) {
+          Left("All arguments must be 1-byte integers")
+        } else {
+          Right(state.copy(
+            currentOffset = state.currentOffset + bytes.length,
+            bytecode = state.bytecode.copy(bytes = state.bytecode.bytes ++ bytes)
+          ))
+        }
+
       case Directive(directive, _, _) => Left(s"Invalid directive: $directive")
     }
 
