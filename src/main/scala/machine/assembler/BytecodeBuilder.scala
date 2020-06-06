@@ -72,60 +72,69 @@ private[assembler] object BytecodeBuilder {
                 Left("Invalid operands for instruction")
             }
         }
+
+      case Directive("define", Seq(DirectiveArgument.StringArg(symbol), DirectiveArgument.IntArg(value)), _) =>
+        if (state.symbolOffsets.contains(symbol)) {
+          Left(s"Duplicate symbol: $symbol")
+        } else {
+          Right(state.copy(symbolOffsets = state.symbolOffsets + (symbol -> value)))
+        }
+      case Directive("define", _, _) => Left("Invalid arguments")
+      case Directive(directive, _, _) => Left(s"Invalid directive: $directive")
     }
 
   private val instructions: Map[String, PartialFunction[Seq[Operand], Int => Either[String, Bytecode]]] = {
     import Operand._
     import Function.const
-    import Bytecode.{noOperand, knownOperandByte, knownOperandWord, relativeReference}
+    import Bytecode.{noOperand, fromValue8, fromValue16, fromValueRelative}
     Map(
       "adc" -> {
-        case Seq(Immediate(imm)) => const(knownOperandByte(0x01, imm))
-        case Seq(Address(addr)) => const(knownOperandWord(0x02, addr))
+        case Seq(Immediate(imm)) => fromValue8(0x01, imm)
+        case Seq(Address(addr)) => fromValue16(0x02, addr)
       },
       "inc" -> {
         case Seq(A) => const(noOperand(0x09))
         case Seq(X) => const(noOperand(0x0A))
         case Seq(Y) => const(noOperand(0x0B))
-        case Seq(Address(addr)) => const(knownOperandWord(0x0C, addr))
-        case Seq(IndexedAddress(addr, X)) => const(knownOperandWord(0x0D, addr))
+        case Seq(Address(addr)) => fromValue16(0x0C, addr)
+        case Seq(IndexedAddress(addr, X)) => fromValue16(0x0D, addr)
       },
       "mov" -> {
-        case Seq(A, Immediate(imm)) => const(knownOperandByte(0x10, imm))
-        case Seq(A, Address(addr)) => const(knownOperandWord(0x11, addr))
-        case Seq(A, IndexedAddress(addr, X)) => const(knownOperandWord(0x12, addr))
-        case Seq(A, IndexedAddress(addr, Y)) => const(knownOperandWord(0x13, addr))
-        case Seq(A, IndirectAddress(addr)) => const(knownOperandWord(0x14, addr))
+        case Seq(A, Immediate(imm)) => fromValue8(0x10, imm)
+        case Seq(A, Address(addr)) => fromValue16(0x11, addr)
+        case Seq(A, IndexedAddress(addr, X)) => fromValue16(0x12, addr)
+        case Seq(A, IndexedAddress(addr, Y)) => fromValue16(0x13, addr)
+        case Seq(A, IndirectAddress(addr)) => fromValue16(0x14, addr)
 
-        case Seq(X, Immediate(imm)) => const(knownOperandByte(0x16, imm))
-        case Seq(X, Address(addr)) => const(knownOperandWord(0x17, addr))
-        case Seq(X, IndexedAddress(addr, Y)) => const(knownOperandWord(0x18, addr))
+        case Seq(X, Immediate(imm)) => fromValue8(0x16, imm)
+        case Seq(X, Address(addr)) => fromValue16(0x17, addr)
+        case Seq(X, IndexedAddress(addr, Y)) => fromValue16(0x18, addr)
 
-        case Seq(Y, Immediate(imm)) => const(knownOperandByte(0x19, imm))
-        case Seq(Y, Address(addr)) => const(knownOperandWord(0x1A, addr))
-        case Seq(Y, IndexedAddress(addr, X)) => const(knownOperandWord(0x1B, addr))
+        case Seq(Y, Immediate(imm)) => fromValue8(0x19, imm)
+        case Seq(Y, Address(addr)) => fromValue16(0x1A, addr)
+        case Seq(Y, IndexedAddress(addr, X)) => fromValue16(0x1B, addr)
 
-        case Seq(Address(addr), A) => const(knownOperandWord(0x20, addr))
-        case Seq(IndexedAddress(addr, X), A) => const(knownOperandWord(0x21, addr))
-        case Seq(IndexedAddress(addr, Y), A) => const(knownOperandWord(0x22, addr))
-        case Seq(IndirectAddress(addr), A) => const(knownOperandWord(0x23, addr))
+        case Seq(Address(addr), A) => fromValue16(0x20, addr)
+        case Seq(IndexedAddress(addr, X), A) => fromValue16(0x21, addr)
+        case Seq(IndexedAddress(addr, Y), A) => fromValue16(0x22, addr)
+        case Seq(IndirectAddress(addr), A) => fromValue16(0x23, addr)
 
-        case Seq(Address(addr), X) => const(knownOperandWord(0x25, addr))
-        case Seq(IndexedAddress(addr, Y), X) => const(knownOperandWord(0x26, addr))
+        case Seq(Address(addr), X) => fromValue16(0x25, addr)
+        case Seq(IndexedAddress(addr, Y), X) => fromValue16(0x26, addr)
 
-        case Seq(Address(addr), Y) => const(knownOperandWord(0x27, addr))
-        case Seq(IndexedAddress(addr, X), Y) => const(knownOperandWord(0x28, addr))
+        case Seq(Address(addr), Y) => fromValue16(0x27, addr)
+        case Seq(IndexedAddress(addr, X), Y) => fromValue16(0x28, addr)
 
         case Seq(X, A) => const(noOperand(0x30))
         case Seq(Y, A) => const(noOperand(0x31))
         case Seq(A, X) => const(noOperand(0x32))
         case Seq(A, Y) => const(noOperand(0x33))
       },
-      "jmp" -> { case Seq(Symbol(sym)) => relativeReference(0x40, sym, _) },
-      "jz" -> { case Seq(Symbol(sym)) => relativeReference(0x41, sym, _) },
-      "jnz" -> { case Seq(Symbol(sym)) => relativeReference(0x42, sym, _) },
-      "jc" -> { case Seq(Symbol(sym)) => relativeReference(0x43, sym, _) },
-      "jnc" -> { case Seq(Symbol(sym)) => relativeReference(0x44, sym, _) }
+      "jmp" -> { case Seq(Immediate(imm)) => fromValueRelative(0x40, imm) },
+      "jz" -> { case Seq(Immediate(imm)) => fromValueRelative(0x41, imm) },
+      "jnz" -> { case Seq(Immediate(imm)) => fromValueRelative(0x42, imm) },
+      "jc" -> { case Seq(Immediate(imm)) => fromValueRelative(0x43, imm) },
+      "jnc" -> { case Seq(Immediate(imm)) => fromValueRelative(0x44, imm) }
     )
   }
 }

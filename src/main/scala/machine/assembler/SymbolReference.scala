@@ -7,6 +7,30 @@ sealed trait SymbolReference {
   def patchWithSymbolOffset(absoluteOffset: Int)(bytes: Seq[Int]): Either[String, Seq[Int]]
 }
 
+private[assembler]
+final case class AbsoluteReference8(
+  symbol: String,
+  referringOpcodeOffset: Int
+) extends SymbolReference {
+
+  def patchWithSymbolOffset(absoluteOffset: Int)(bytes: Seq[Int]): Either[String, Seq[Int]] =
+    Right(bytes.updated(referringOpcodeOffset + 1, absoluteOffset))
+}
+
+private[assembler]
+final case class AbsoluteReference16(
+  symbol: String,
+  referringOpcodeOffset: Int
+) extends SymbolReference {
+
+  def patchWithSymbolOffset(absoluteOffset: Int)(bytes: Seq[Int]): Either[String, Seq[Int]] = {
+    val lo = absoluteOffset & 0xFF
+    val hi = absoluteOffset >> 8 & 0xFF
+    Right(bytes.updated(referringOpcodeOffset + 1, lo).updated(referringOpcodeOffset + 2, hi))
+  }
+}
+
+private[assembler]
 final case class RelativeReference(
   symbol: String,
   referringOpcodeOffset: Int

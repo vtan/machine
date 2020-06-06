@@ -20,7 +20,7 @@ private[assembler] object ProgramParser {
     P(line.rep(sep = newlines./).map(_.flatten) ~ End)
 
   private def line[_: P]: P[Seq[Command]] =
-    P(label.? ~ instruction.?).map { case (l, i) => l.toSeq ++ i.toSeq }
+    P(label.? ~ (directive | instruction).?).map { case (l, i) => l.toSeq ++ i.toSeq }
 
   private def label[_: P]: P[Label] =
     P(identifier ~~ ":" ~ Index).map((Label.apply _).tupled)
@@ -29,22 +29,30 @@ private[assembler] object ProgramParser {
     P(identifier ~ operand.rep(sep = ","./) ~ Index).map((Instruction.apply _).tupled)
 
   private def operand[_: P]: P[Operand] =
-    P((register ~~ !identifier) | indirectAddressReference | addressReference | immediate | symbol)
+    P((register ~~ !identifier) | indirectAddressReference | addressReference | immediate)
 
-  private def immediate[_: P]: P[Operand] = P(number.map(Operand.Immediate))
-  private def symbol[_: P]: P[Operand] = P(identifier.map(Operand.Symbol))
+  private def immediate[_: P]: P[Operand] = P(value.map(Operand.Immediate))
 
   private def addressReference[_: P]: P[Operand] =
-    P("[" ~ number ~ ("+" ~ register).? ~ "]").map {
+    P("[" ~ value ~ ("+" ~ register).? ~ "]").map {
       case (address, None) => Operand.Address(address)
       case (address, Some(reg)) => Operand.IndexedAddress(address, reg)
     }
 
   private def indirectAddressReference[_: P]: P[Operand] =
-    P("[[" ~ number ~ "]]").map(Operand.IndirectAddress)
+    P("[[" ~ value ~ "]]").map(Operand.IndirectAddress)
 
   private def register[_: P]: P[Operand.Register] =
     P("a".!.map(_ => Operand.A) | "x".!.map(_ => Operand.X) | "y".!.map(_ => Operand.Y))
+
+  private def value[_: P]: P[Operand.Value] =
+    P(number.map(Operand.Literal) | identifier.map(Operand.Symbol))
+
+  private def directive[_: P]: P[Directive] =
+    P("." ~~/ identifier ~/ directiveArgument.rep ~ Index).map((Directive.apply _).tupled)
+
+  private def directiveArgument[_: P]: P[DirectiveArgument] =
+    P(number.map(DirectiveArgument.IntArg) | identifier.map(DirectiveArgument.StringArg))
 
   private def identifier[_: P]: P[String] =
     P((CharIn("a-zA-Z_") ~ CharsWhileIn("a-zA-Z_0-9")).!)
