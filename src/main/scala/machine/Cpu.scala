@@ -126,7 +126,22 @@ class Cpu(bus: Bus) {
       0x46 -> Operation(jnn, relative),
 
       0x49 -> Operation(call, absolute),
-      0x4A -> Operation(ret, implied)
+      0x4A -> Operation(ret, implied),
+
+      0x50 -> Operation(decReg(() => a, a = _), implied),
+      0x51 -> Operation(decReg(() => x, x = _), implied),
+      0x52 -> Operation(decReg(() => y, y = _), implied),
+      0x53 -> Operation(decMem, absolute),
+      0x54 -> Operation(decMem, absoluteIndexed(() => x)),
+
+      0x55 -> Operation(cmp(() => a), immediate),
+      0x56 -> Operation(cmp(() => a), absolute),
+      0x57 -> Operation(cmp(() => a), absoluteIndexed(() => x)),
+      0x58 -> Operation(cmp(() => a), absoluteIndexed(() => y)),
+      0x59 -> Operation(cmp(() => x), immediate),
+      0x5A -> Operation(cmp(() => x), absolute),
+      0x5B -> Operation(cmp(() => y), immediate),
+      0x5C -> Operation(cmp(() => y), absolute),
     )
   }
 
@@ -195,6 +210,30 @@ class Cpu(bus: Bus) {
       bus.write(address, result.toShort)
       setZeroFlag(result)
       setNegativeFlag(result)
+    }
+
+    def decReg(get: () => Int, set: Int => ())(address: Int): Unit = {
+      val _ = address
+      val result = (get() - 1) & 0xFF
+      set(result)
+      setZeroFlag(result)
+      setNegativeFlag(result)
+    }
+
+    def decMem(address: Int): Unit = {
+      val result = (bus.read(address) - 1) & 0xFF
+      bus.write(address, result.toShort)
+      setZeroFlag(result)
+      setNegativeFlag(result)
+    }
+
+    def cmp(get: () => Int)(address: Int): Unit = {
+      val lhs = get()
+      val rhs = bus.read(address)
+      val diff = lhs - rhs
+      setFlag(flagCarry, diff >= 0)
+      setZeroFlag(diff)
+      setNegativeFlag(diff)
     }
 
     def movToReg(set: Int => ())(address: Int): Unit = {

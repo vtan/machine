@@ -17,8 +17,12 @@ private[assembler] object BytecodeBuilder {
     for {
       result <- commands.foldLeft(initialState) { (errorOrState, command) =>
         errorOrState match {
-          case Right(state) => processCommand(command, state)
-          case Left(error) => Left(s"Error at ${command.position}: " ++ error)
+          case Right(state) =>
+            processCommand(command, state).fold(
+              error => Left(s"Error at ${command.position}: $error"),
+              Right(_)
+            )
+          case left => left
         }
       }
       bytecodeWithReferences <- fillReferences(
@@ -165,7 +169,24 @@ private[assembler] object BytecodeBuilder {
       "jn" -> { case Seq(Immediate(imm)) => fromValueRelative(0x45, imm) },
       "jnn" -> { case Seq(Immediate(imm)) => fromValueRelative(0x46, imm) },
       "call" -> { case Seq(Immediate(imm)) => fromValue16(0x49, imm) },
-      "ret" -> { case Seq() => const(noOperand(0x4A)) }
+      "ret" -> { case Seq() => const(noOperand(0x4A)) },
+      "dec" -> {
+        case Seq(A) => const(noOperand(0x50))
+        case Seq(X) => const(noOperand(0x51))
+        case Seq(Y) => const(noOperand(0x52))
+        case Seq(Address(addr)) => fromValue16(0x53, addr)
+        case Seq(IndexedAddress(addr, X)) => fromValue16(0x54, addr)
+      },
+      "cmp" -> {
+        case Seq(A, Immediate(imm)) => fromValue8(0x55, imm)
+        case Seq(A, Address(addr)) => fromValue16(0x56, addr)
+        case Seq(A, IndexedAddress(addr, X)) => fromValue16(0x57, addr)
+        case Seq(A, IndexedAddress(addr, Y)) => fromValue16(0x58, addr)
+        case Seq(X, Immediate(imm)) => fromValue8(0x59, imm)
+        case Seq(X, Address(addr)) => fromValue16(0x5A, addr)
+        case Seq(Y, Immediate(imm)) => fromValue8(0x5B, imm)
+        case Seq(Y, Address(addr)) => fromValue16(0x5C, addr)
+      }
     )
   }
 }
