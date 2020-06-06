@@ -11,14 +11,22 @@ class Cpu(bus: Bus) {
 
   private val flagZero: Int = 1 << 0
   private val flagCarry: Int = 1 << 1
+  private val flagNegative: Int = 1 << 2
 
   def registers: Map[String, Int] = Map(
     "a" -> a,
     "x" -> x,
     "y" -> y,
-    "ip" -> ip,
-    "flags" -> flags
+    "ip" -> ip
   )
+
+  def enabledFlags: String = {
+    val stringBuilder = new StringBuilder
+    if ((flags & flagNegative) != 0) stringBuilder += 'N'
+    if ((flags & flagCarry) != 0) stringBuilder += 'C'
+    if ((flags & flagZero) != 0) stringBuilder += 'Z'
+    stringBuilder.result
+  }
 
   def step(): Unit =
     if (error.isEmpty) {
@@ -52,6 +60,9 @@ class Cpu(bus: Bus) {
 
   private def setZeroFlag(value: Int): Unit =
     setFlag(flagZero, value == 0)
+
+  private def setNegativeFlag(value: Int): Unit =
+    setFlag(flagNegative, (value & 0x80) != 0)
 
   // TODO use an array?
   private val opcodes: Map[Int, Operation] = {
@@ -151,6 +162,7 @@ class Cpu(bus: Bus) {
       val sum = a + bus.read(address) + (if ((flags & flagCarry) == 0) 0 else 1)
       val result = sum & 0xFF
       setZeroFlag(result)
+      setNegativeFlag(result)
       setFlag(flagCarry, (sum & 0x100) != 0)
       a = result
     }
@@ -160,23 +172,32 @@ class Cpu(bus: Bus) {
       val result = (get() + 1) & 0xFF
       set(result)
       setZeroFlag(result)
+      setNegativeFlag(result)
     }
 
     def incMem(address: Int): Unit = {
       val result = (bus.read(address) + 1) & 0xFF
       bus.write(address, result.toShort)
       setZeroFlag(result)
+      setNegativeFlag(result)
     }
 
-    def movToReg(set: Int => ())(address: Int): Unit =
-      set(bus.read(address).toInt)
+    def movToReg(set: Int => ())(address: Int): Unit = {
+      val value = bus.read(address).toInt
+      set(value)
+      setZeroFlag(value)
+      setNegativeFlag(value)
+    }
 
     def movFromReg(get: () => Int)(address: Int): Unit =
       bus.write(address, get().toShort)
 
     def movBetweenRegs(get: () => Int, set: Int => ())(address: Int): Unit = {
       val _ = address
-      set(get())
+      val value = get()
+      set(value)
+      setZeroFlag(value)
+      setNegativeFlag(value)
     }
 
     def jmp(address: Int): Unit =

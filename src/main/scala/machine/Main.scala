@@ -18,6 +18,7 @@ class State(
   val machineError: Var[Option[String]] = Var(machine.cpu.error)
   val memory: Var[String] = Var(MemoryPrinter.print(machine.bus.memory))
   val registers: Var[Map[String, Int]] = Var(machine.cpu.registers)
+  val flags: Var[String] = Var(machine.cpu.enabledFlags)
 
   private var canvas: Option[HTMLCanvasElement] = None
 
@@ -52,6 +53,7 @@ class State(
     machineError.value = machine.cpu.error
     memory.value = MemoryPrinter.print(machine.bus.memory)
     registers.value = machine.cpu.registers
+    flags.value = machine.cpu.enabledFlags
   }
 }
 
@@ -114,11 +116,12 @@ object Main {
       <div class="cpuRegisters">
         {
           val registers = state.registers.bind
+          val flags = state.flags.bind
           <div class="cpuRegister"><strong>IP</strong> { String.format("%04X", registers("ip")) }</div>
           <div class="cpuRegister"><strong>A</strong> { String.format("%02X", registers("a")) }</div>
           <div class="cpuRegister"><strong>X</strong> { String.format("%02X", registers("x")) }</div>
           <div class="cpuRegister"><strong>Y</strong> { String.format("%02X", registers("y")) }</div>
-          <div class="cpuRegister"><strong>FLAGS</strong> { String.format("%02X", registers("flags")) }</div>
+          <div class="cpuRegister"><strong>FLAGS</strong> { flags }</div>
         }
       </div>
       <div class="machineMemory">
