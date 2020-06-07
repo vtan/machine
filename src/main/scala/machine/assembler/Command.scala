@@ -1,28 +1,21 @@
 package machine.assembler
 
 private[assembler]
-sealed trait Command {
-  val position: Int
-}
+sealed trait Command
 
 private[assembler]
 final case class Instruction(
   operation: String,
   operands: Seq[Operand],
-  position: Int
 ) extends Command
 
 private[assembler]
-final case class Label(
-  symbol: String,
-  position: Int
-) extends Command
+final case class Label(symbol: String) extends Command
 
 private[assembler]
 final case class Directive(
   directive: String,
-  arguments: Seq[DirectiveArgument],
-  position: Int
+  arguments: Seq[DirectiveArgument]
 ) extends Command
 
 private[assembler]

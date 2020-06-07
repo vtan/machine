@@ -8,18 +8,18 @@ private[assembler] object BytecodeBuilder {
     bytecode: Bytecode
   )
 
-  def build(commands: Seq[Command]): Either[String, Seq[Int]] = {
+  def build(commands: Seq[WithLocation[Command]]): Either[String, Seq[Int]] = {
     val initialState: Either[String, State] = Right(State(
       currentOffset = 0,
       symbolOffsets = Map.empty,
       bytecode = Bytecode.empty
     ))
     for {
-      result <- commands.foldLeft(initialState) { (errorOrState, command) =>
+      result <- commands.foldLeft(initialState) { (errorOrState, commandWithLocation) =>
         errorOrState match {
           case Right(state) =>
-            processCommand(command, state).fold(
-              error => Left(s"Error at ${command.position}: $error"),
+            processCommand(commandWithLocation.value, state).fold(
+              error => Left(s"Error at ${commandWithLocation.location}: $error"),
               Right(_)
             )
           case left => left
@@ -51,14 +51,14 @@ private[assembler] object BytecodeBuilder {
 
   private def processCommand(command: Command, state: State): Either[String, State] =
     command match {
-      case Label(symbol, _) =>
+      case Label(symbol) =>
         if (state.symbolOffsets.contains(symbol)) {
           Left("Duplicate label")
         } else {
           Right(state.copy(symbolOffsets = state.symbolOffsets + (symbol -> state.currentOffset)))
         }
 
-      case Instruction(operation, operands, _) =>
+      case Instruction(operation, operands) =>
         instructions.get(operation) match {
           case None => Left(s"Invalid instruction: $operation")
           case Some(validOperands) =>
@@ -77,15 +77,15 @@ private[assembler] object BytecodeBuilder {
             }
         }
 
-      case Directive("define", Seq(DirectiveArgument.StringArg(symbol), DirectiveArgument.IntArg(value)), _) =>
+      case Directive("define", Seq(DirectiveArgument.StringArg(symbol), DirectiveArgument.IntArg(value))) =>
         if (state.symbolOffsets.contains(symbol)) {
           Left(s"Duplicate symbol: $symbol")
         } else {
           Right(state.copy(symbolOffsets = state.symbolOffsets + (symbol -> value)))
         }
-      case Directive("define", _, _) => Left("Invalid arguments")
+      case Directive("define", _) => Left("Invalid arguments")
 
-      case Directive("offset", Seq(DirectiveArgument.IntArg(offset)), _) =>
+      case Directive("offset", Seq(DirectiveArgument.IntArg(offset))) =>
         if (offset < state.currentOffset) {
           Left(s"Current offset is already ${state.currentOffset}")
         } else if (offset < 0 && offset >= 0xA000) {
@@ -98,9 +98,9 @@ private[assembler] object BytecodeBuilder {
             )
           ))
         }
-      case Directive("offset", _, _) => Left("Invalid arguments")
+      case Directive("offset", _) => Left("Invalid arguments")
 
-      case Directive("byte", args, _) =>
+      case Directive("byte", args) =>
         val (invalid, bytes) = args.partitionMap { case DirectiveArgument.IntArg(i) => Right(i); case _ => Left(()) }
         if (invalid.nonEmpty || bytes.exists(n => n < -128 || n > 255)) {
           Left("All arguments must be 1-byte integers")
@@ -111,7 +111,7 @@ private[assembler] object BytecodeBuilder {
           ))
         }
 
-      case Directive(directive, _, _) => Left(s"Invalid directive: $directive")
+      case Directive(directive, _) => Left(s"Invalid directive: $directive")
     }
 
   private val instructions: Map[String, PartialFunction[Seq[Operand], Int => Either[String, Bytecode]]] = {

@@ -4,11 +4,19 @@ import fastparse._
 
 private[assembler] object ProgramParser {
 
-  def parse(input: String): Either[String, Seq[Command]] =
-    fastparse.parse(input, program(_), verboseFailures = true) match {
-      case Parsed.Success(result, _) => Right(result)
+  final case class WithIndex[+T](value: T, index: Int)
+
+  def parse(input: String): Either[String, Seq[WithLocation[Command]]] = {
+    val parserInput: ParserInput = input
+    fastparse.parse(parserInput, program(_), verboseFailures = true) match {
+      case Parsed.Success(commands, _) =>
+        val result = commands.map {
+          case WithIndex(command, index) => new WithLocation(parserInput.prettyIndex(index), command)
+        }
+        Right(result)
       case failure: Parsed.Failure => Left(failure.msg)
     }
+  }
 
   private implicit val whitespace: P[_] => P[Unit] = { implicit ctx: P[_] =>
     P(CharsWhileIn(" \t", 0) ~~ (";" ~~ CharPred(ch => ch != '\n' && ch != '\r').repX(0)).?)
@@ -16,17 +24,20 @@ private[assembler] object ProgramParser {
 
   private def newlines[_: P]: P[Unit] = CharsWhileIn("\n\r")
 
-  private def program[_: P] : P[Seq[Command]] =
+  private def program[_: P] : P[Seq[WithIndex[Command]]] =
     P(line.rep(sep = newlines./).map(_.flatten) ~ End)
 
-  private def line[_: P]: P[Seq[Command]] =
-    P(label.? ~ (directive | instruction).?).map { case (l, i) => l.toSeq ++ i.toSeq }
+  private def line[_: P]: P[Seq[WithIndex[Command]]] =
+    P(withIndex(label).? ~ withIndex(directive | instruction).?).map { case (l, i) => l.toSeq ++ i.toSeq }
+
+  private def withIndex[_: P, T](p: P[T]): P[WithIndex[T]] =
+    P(p ~~ Index).map((WithIndex.apply[T] _).tupled)
 
   private def label[_: P]: P[Label] =
-    P(identifier ~~ ":" ~ Index).map((Label.apply _).tupled)
+    P(identifier ~~ ":").map(Label)
 
   private def instruction[_: P]: P[Instruction] =
-    P(identifier ~ operand.rep(sep = ","./) ~ Index).map((Instruction.apply _).tupled)
+    P(identifier ~ operand.rep(sep = ","./)).map((Instruction.apply _).tupled)
 
   private def operand[_: P]: P[Operand] =
     P((register ~~ !identifier) | indirectAddressReference | addressReference | immediate)
@@ -52,7 +63,7 @@ private[assembler] object ProgramParser {
     P(number.map(Operand.Literal) | identifier.map(Operand.Symbol))
 
   private def directive[_: P]: P[Directive] =
-    P("." ~~/ identifier ~/ directiveArgument.rep ~ Index).map((Directive.apply _).tupled)
+    P("." ~~/ identifier ~/ directiveArgument.rep).map((Directive.apply _).tupled)
 
   private def directiveArgument[_: P]: P[DirectiveArgument] =
     P(number.map(DirectiveArgument.IntArg) | identifier.map(DirectiveArgument.StringArg))
