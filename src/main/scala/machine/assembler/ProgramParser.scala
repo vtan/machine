@@ -40,7 +40,10 @@ private[assembler] object ProgramParser {
     }
 
   private def indirectAddressReference[_: P]: P[Operand] =
-    P("[[" ~ value ~ "]]").map(Operand.IndirectAddress)
+    P("[[" ~ value ~ "]" ~ ("+" ~ register).? ~ "]").map {
+      case (address, None) => Operand.IndirectAddress(address)
+      case (address, Some(reg)) => Operand.IndirectIndexedAddress(address, reg)
+    }
 
   private def register[_: P]: P[Operand.Register] =
     P("a".!.map(_ => Operand.A) | "x".!.map(_ => Operand.X) | "y".!.map(_ => Operand.Y))

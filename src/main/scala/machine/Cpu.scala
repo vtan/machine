@@ -91,7 +91,8 @@ class Cpu(bus: Bus) {
       0x11 -> Operation(movToReg(a = _), absolute),
       0x12 -> Operation(movToReg(a = _), absoluteIndexed(() => x)),
       0x13 -> Operation(movToReg(a = _), absoluteIndexed(() => y)),
-      0x14 -> Operation(movToReg(a = _), indirect),
+      0x14 -> Operation(movToReg(a = _), indirectIndexed(() => x)),
+      0x15 -> Operation(movToReg(a = _), indirectIndexed(() => y)),
 
       0x16 -> Operation(movToReg(x = _), immediate),
       0x17 -> Operation(movToReg(x = _), absolute),
@@ -104,7 +105,8 @@ class Cpu(bus: Bus) {
       0x20 -> Operation(movFromReg(() => a), absolute),
       0x21 -> Operation(movFromReg(() => a), absoluteIndexed(() => x)),
       0x22 -> Operation(movFromReg(() => a), absoluteIndexed(() => y)),
-      0x23 -> Operation(movFromReg(() => a), indirect),
+      0x23 -> Operation(movFromReg(() => a), indirectIndexed(() => x)),
+      0x24 -> Operation(movFromReg(() => a), indirectIndexed(() => y)),
 
       0x25 -> Operation(movFromReg(() => x), absolute),
       0x26 -> Operation(movFromReg(() => x), absoluteIndexed(() => y)),
@@ -183,6 +185,15 @@ class Cpu(bus: Bus) {
       val lo = bus.read(addr)
       val hi = bus.read(addr + 1)
       lo | hi << 8
+    }
+
+    def indirectIndexed(reg: () => Int)(): Int = {
+      val addrLo = nextInstructionByte()
+      val addrHi = nextInstructionByte()
+      val addr = addrLo | addrHi << 8
+      val lo = bus.read(addr)
+      val hi = bus.read(addr + 1)
+      ((lo | hi << 8) + reg()) & 0xFFFF
     }
   }
 

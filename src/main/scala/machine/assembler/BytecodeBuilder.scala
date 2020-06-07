@@ -135,7 +135,8 @@ private[assembler] object BytecodeBuilder {
         case Seq(A, Address(addr)) => fromValue16(0x11, addr)
         case Seq(A, IndexedAddress(addr, X)) => fromValue16(0x12, addr)
         case Seq(A, IndexedAddress(addr, Y)) => fromValue16(0x13, addr)
-        case Seq(A, IndirectAddress(addr)) => fromValue16(0x14, addr)
+        case Seq(A, IndirectIndexedAddress(addr, X)) => fromValue16(0x14, addr)
+        case Seq(A, IndirectIndexedAddress(addr, Y)) => fromValue16(0x15, addr)
 
         case Seq(X, Immediate(imm)) => fromValue8(0x16, imm)
         case Seq(X, Address(addr)) => fromValue16(0x17, addr)
@@ -148,7 +149,8 @@ private[assembler] object BytecodeBuilder {
         case Seq(Address(addr), A) => fromValue16(0x20, addr)
         case Seq(IndexedAddress(addr, X), A) => fromValue16(0x21, addr)
         case Seq(IndexedAddress(addr, Y), A) => fromValue16(0x22, addr)
-        case Seq(IndirectAddress(addr), A) => fromValue16(0x23, addr)
+        case Seq(IndirectIndexedAddress(addr, X), A) => fromValue16(0x23, addr)
+        case Seq(IndirectIndexedAddress(addr, Y), A) => fromValue16(0x24, addr)
 
         case Seq(Address(addr), X) => fromValue16(0x25, addr)
         case Seq(IndexedAddress(addr, Y), X) => fromValue16(0x26, addr)

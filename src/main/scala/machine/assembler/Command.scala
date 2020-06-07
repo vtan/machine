@@ -33,6 +33,7 @@ object Operand {
   final case class Address(value: Value) extends Operand
   final case class IndirectAddress(value: Value) extends Operand
   final case class IndexedAddress(value: Value, register: Register) extends Operand
+  final case class IndirectIndexedAddress(value: Value, register: Register) extends Operand
   final case class Immediate(value: Value) extends Operand
 
   sealed trait Register extends Operand
